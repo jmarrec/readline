@@ -77,7 +77,7 @@
 #undef HAVE_KILL
 
 /* Define if you have the lstat function. */
-#undef HAVE_LSTAT
+/* #define HAVE_LSTAT */
 
 /* Define if you have the mbrlen function. */
 #undef HAVE_MBRLEN
@@ -101,7 +101,7 @@
 #undef HAVE_READLINK
 
 /* Define if you have the select function.  */
-#undef HAVE_SELECT
+/* #undef HAVE_SELECT */
 
 /* Define if you have the setenv function.  */
 #undef HAVE_SETENV
@@ -110,7 +110,7 @@
 #undef HAVE_SETLOCALE
 
 /* Define if you have the strcasecmp function.  */
-#undef HAVE_STRCASECMP
+/* #undef HAVE_STRCASECMP */
 
 /* Define if you have the strcoll function.  */
 #undef HAVE_STRCOLL
@@ -133,7 +133,7 @@
 #undef HAVE_VSNPRINTF
 
 /* Define if you have the wcrtomb function.  */
-#undef HAVE_WCRTOMB 
+#undef HAVE_WCRTOMB
 
 /* Define if you have the wcscoll function.  */
 #undef HAVE_WCSCOLL
@@ -150,7 +150,7 @@
 #undef STDC_HEADERS
 
 /* Define if you have the <dirent.h> header file.  */
-#undef HAVE_DIRENT_H
+/* #undef HAVE_DIRENT_H */
 
 /* Define if you have the <fcntl.h> header file.  */
 #undef HAVE_FCNTL_H
@@ -192,7 +192,7 @@
 #undef HAVE_STRING_H
 
 /* Define if you have the <strings.h> header file.  */
-#undef HAVE_STRINGS_H
+/* #undef HAVE_STRINGS_H */
 
 /* Define if you have the <sys/dir.h> header file.  */
 #undef HAVE_SYS_DIR_H
@@ -213,7 +213,7 @@
 #undef HAVE_SYS_PTEM_H
 
 /* Define if you have the <sys/select.h> header file.  */
-#undef HAVE_SYS_SELECT_H
+/* #undef HAVE_SYS_SELECT_H */
 
 /* Define if you have the <sys/stream.h> header file.  */
 #undef HAVE_SYS_STREAM_H
@@ -228,7 +228,7 @@
 #undef HAVE_TERMIOS_H
 
 /* Define if you have the <unistd.h> header file.  */
-#undef HAVE_UNISTD_H
+/* #undef HAVE_UNISTD_H */
 
 /* Define if you have the <varargs.h> header file.  */
 #undef HAVE_VARARGS_H
@@ -242,13 +242,13 @@
 #undef HAVE_MBSTATE_T
 
 /* Define if you have wchar_t in <wctype.h>. */
-#undef HAVE_WCHAR_T 
+#undef HAVE_WCHAR_T
 
 /* Define if you have wctype_t in <wctype.h>. */
 #undef HAVE_WCTYPE_T
 
-/* Define if you have wint_t in <wctype.h>. */  
-#undef HAVE_WINT_T  
+/* Define if you have wint_t in <wctype.h>. */
+#undef HAVE_WINT_T
 
 /* Define if you have <langinfo.h> and nl_langinfo(CODESET). */
 #undef HAVE_LANGINFO_CODESET
@@ -259,7 +259,7 @@
 /* Definitions pulled in from aclocal.m4. */
 #undef VOID_SIGHANDLER
 
-#undef GWINSZ_IN_SYS_IOCTL
+/* #undef GWINSZ_IN_SYS_IOCTL */
 
 #undef STRUCT_WINSIZE_IN_SYS_IOCTL
 
@@ -267,7 +267,7 @@
 
 #undef TIOCSTAT_IN_SYS_IOCTL
 
-#undef FIONREAD_IN_SYS_IOCTL
+/* #undef FIONREAD_IN_SYS_IOCTL */
 
 #undef SPEED_T_IN_SYS_TYPES
 
