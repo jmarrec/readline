@@ -1,0 +1,749 @@
+From c22b8886456fa148db5e52c7a08b2e2110c4bbad Mon Sep 17 00:00:00 2001
+From: Julien Marrec <julien.marrec@gmail.com>
+Date: Wed, 6 Jul 2022 12:19:06 +0200
+Subject: [PATCH 1/1] Patch similar to
+ https://github.com/lltcggie/readline/commit/ea414b4e98475e3976198738061824e8a8379a50
+
+---
+ bind.c      | 30 +++++++++++++++---------------
+ complete.c  | 26 +++++++++++++-------------
+ config.h.in | 26 +++++++++++++-------------
+ display.c   | 36 ++++++++++++++++++------------------
+ funmap.c    |  6 +++---
+ histlib.h   |  2 +-
+ keymaps.h   | 18 +++++++++---------
+ parens.c    |  4 ++--
+ rldefs.h    |  4 ++--
+ rlmbutil.h  |  8 +++++++-
+ util.c      |  6 +++---
+ 11 files changed, 86 insertions(+), 80 deletions(-)
+
+diff --git a/bind.c b/bind.c
+index 7610378..d1db64b 100644
+--- a/bind.c
++++ b/bind.c
+@@ -65,7 +65,7 @@ extern int errno;
+ #include "rlshell.h"
+ #include "xmalloc.h"
+ 
+-#if !defined (strchr) && !defined (__STDC__)
++#if !defined (strchr) && !defined (__STDC__) && !defined (_WIN32)
+ extern char *strchr (), *strrchr ();
+ #endif /* !strchr && !__STDC__ */
+ 
+@@ -184,7 +184,7 @@ bind_keyseq:
+ 	  keyseq[l++] = '\\';
+ 	  keyseq[l++] = '\\';
+ 	}
+-      else if (key == '\0')	  
++      else if (key == '\0')
+ 	{
+ 	  keyseq[l++] = '\\';
+ 	  keyseq[l++] = '0';
+@@ -382,7 +382,7 @@ rl_generic_bind (int type, const char *keyseq, char *data, Keymap map)
+   int keys_len, prevkey, ic;
+   register int i;
+   KEYMAP_ENTRY k;
+-  Keymap prevmap;  
++  Keymap prevmap;
+ 
+   k.function = 0;
+ 
+@@ -555,7 +555,7 @@ rl_translate_keyseq (const char *seq, char *array, int *len)
+ 	      i++;
+ 	      has_meta = 1;
+ 	      continue;
+-	    }	      
++	    }
+ 
+ 	  /* Translate other backslash-escaped characters.  These are the
+ 	     same escape sequences that bash's `echo' and `printf' builtins
+@@ -1000,7 +1000,7 @@ _rl_read_init_file (const char *filename, int include_level)
+   RL_CHECK_SIGNALS ();
+   if (buffer == 0)
+     return (errno);
+-  
++
+   if (include_level == 0 && filename != last_readline_init_file)
+     {
+       FREE (last_readline_init_file);
+@@ -1134,7 +1134,7 @@ parse_comparison_op (s, indp)
+     }
+ 
+   *indp = i;
+-  return op;        
++  return op;
+ }
+ 
+ /* **************************************************************** */
+@@ -1436,7 +1436,7 @@ parser_include (char *args)
+ 
+   return r;
+ }
+-  
++
+ /* Associate textual names with actual functions. */
+ static const struct {
+   const char * const name;
+@@ -1625,7 +1625,7 @@ rl_parse_and_bind (char *string)
+ 	      while (e >= value && whitespace (*e))
+ 		e--;
+ 	      e++;		/* skip back to whitespace or EOS */
+-	  
++
+ 	      if (*e && e >= value)
+ 		*e = '\0';
+ 	    }
+@@ -1856,7 +1856,7 @@ static const char *
+ boolean_varname (int i)
+ {
+   return ((i >= 0) ? boolean_varlist[i].name : (char *)NULL);
+-}  
++}
+ 
+ /* Hooks for handling special boolean variables, where a
+    function needs to be called or another variable needs
+@@ -1922,13 +1922,13 @@ static const struct {
+   { "completion-prefix-display-length", V_INT,	sv_dispprefix },
+   { "completion-query-items", V_INT,	sv_compquery },
+   { "editing-mode",	V_STRING,	sv_editmode },
+-  { "emacs-mode-string", V_STRING,	sv_emacs_modestr },  
++  { "emacs-mode-string", V_STRING,	sv_emacs_modestr },
+   { "history-size",	V_INT,		sv_histsize },
+   { "isearch-terminators", V_STRING,	sv_isrchterm },
+   { "keymap",		V_STRING,	sv_keymap },
+   { "keyseq-timeout",	V_INT,		sv_seqtimeout },
+-  { "vi-cmd-mode-string", V_STRING,	sv_vicmd_modestr }, 
+-  { "vi-ins-mode-string", V_STRING,	sv_viins_modestr }, 
++  { "vi-cmd-mode-string", V_STRING,	sv_vicmd_modestr },
++  { "vi-ins-mode-string", V_STRING,	sv_viins_modestr },
+   { (char *)NULL,	0, (_rl_sv_func_t *)0 }
+ };
+ 
+@@ -1947,7 +1947,7 @@ static const char *
+ string_varname (int i)
+ {
+   return ((i >= 0) ? string_varlist[i].name : (char *)NULL);
+-}  
++}
+ 
+ /* A boolean value that can appear in a `set variable' command is true if
+    the value is null or empty, `on' (case-insensitive), or "1".  All other
+@@ -2647,7 +2647,7 @@ rl_invoking_keyseqs_in_map (rl_command_func_t *function, Keymap map)
+ 		    keyname[l++] = (char) c;
+ 		    keyname[l++] = '\0';
+ 		  }
+-		
++
+ 		strcat (keyname, seqs[i]);
+ 		xfree (seqs[i]);
+ 
+@@ -2903,7 +2903,7 @@ _rl_get_string_variable_value (const char *name)
+     }
+   else if (_rl_stricmp (name, "keyseq-timeout") == 0)
+     {
+-      sprintf (numbuf, "%d", _rl_keyseq_timeout);    
++      sprintf (numbuf, "%d", _rl_keyseq_timeout);
+       return (numbuf);
+     }
+   else if (_rl_stricmp (name, "emacs-mode-string") == 0)
+diff --git a/complete.c b/complete.c
+index fc5c3ad..3f4cacb 100644
+--- a/complete.c
++++ b/complete.c
+@@ -77,7 +77,7 @@ extern int errno;
+ #  include "colors.h"
+ #endif
+ 
+-#ifdef __STDC__
++#if defined(__STDC__) || defined (_WIN32)
+ typedef int QSFUNC (const void *, const void *);
+ #else
+ typedef int QSFUNC ();
+@@ -356,7 +356,7 @@ rl_compignore_func_t *rl_ignore_some_completions_function = (rl_compignore_func_
+    and a pointer to the quoting character to be used, which the function can
+    reset if desired. */
+ rl_quote_func_t *rl_filename_quoting_function = rl_quote_filename;
+-         
++
+ /* Function to call to remove quoting characters from a filename.  Called
+    before completion is attempted, so the embedded quotes do not interfere
+    with matching names in the file system.  Readline doesn't do anything
+@@ -619,7 +619,7 @@ stat_char (char *filename)
+     }
+   else
+     fn = filename;
+-    
++
+ #if defined (HAVE_LSTAT) && defined (S_ISLNK)
+   r = lstat (fn, &finfo);
+ #else
+@@ -1136,7 +1136,7 @@ _rl_find_completion_word (int *fp, int *dp)
+ 	      else if (quote_char == '"')
+ 		found_quote |= RL_QF_DOUBLE_QUOTE;
+ 	      else
+-		found_quote |= RL_QF_OTHER_QUOTE;      
++		found_quote |= RL_QF_OTHER_QUOTE;
+ 	    }
+ 	}
+     }
+@@ -1245,7 +1245,7 @@ gen_completion_matches (char *text, int start, int end, rl_compentry_func_t *our
+       matches = 0;
+       RL_CHECK_SIGNALS ();
+     }
+-  return matches;  
++  return matches;
+ }
+ 
+ /* Filter out duplicates in MATCHES.  This frees up the strings in
+@@ -1724,7 +1724,7 @@ display_matches (char **matches)
+       (*rl_completion_display_matches_hook) (matches, len, max);
+       return;
+     }
+-	
++
+   /* If there are many items, then ask the user if she really wants to
+      see them all. */
+   if (rl_completion_query_items > 0 && len >= rl_completion_query_items)
+@@ -1974,14 +1974,14 @@ compare_match (char *text, const char *match)
+   char *temp;
+   int r;
+ 
+-  if (rl_filename_completion_desired && rl_filename_quoting_desired && 
++  if (rl_filename_completion_desired && rl_filename_quoting_desired &&
+       rl_completion_found_quote && rl_filename_dequoting_function)
+     {
+       temp = (*rl_filename_dequoting_function) (text, rl_completion_quote_character);
+       r = strcmp (temp, match);
+       free (temp);
+       return r;
+-    }      
++    }
+   return (strcmp (text, match));
+ }
+ 
+@@ -2129,7 +2129,7 @@ rl_complete_internal (int what_to_do)
+ 	  append_to_match (matches[0], delimiter, quote_char, nontrivial_lcd);
+ 	  break;
+ 	}
+-      
++
+       if (rl_completion_display_matches_hook == 0)
+ 	{
+ 	  _rl_sigcleanup = _rl_complete_sigcleanup;
+@@ -2766,7 +2766,7 @@ rl_old_menu_complete (int count, int invoking_key)
+      rl_line_buffer[orig_start] and rl_line_buffer[rl_point] with
+      matches[match_list_index], and add any necessary closing char. */
+ 
+-  if (matches == 0 || match_list_size == 0) 
++  if (matches == 0 || match_list_size == 0)
+     {
+       rl_ding ();
+       FREE (matches);
+@@ -2808,7 +2808,7 @@ rl_old_menu_complete (int count, int invoking_key)
+ 3. It displays the common prefix if there is one, and makes it the first menu
+    choice if the menu-complete-display-prefix option is enabled
+ */
+- 
++
+ int
+ rl_menu_complete (int count, int ignore)
+ {
+@@ -2891,7 +2891,7 @@ rl_menu_complete (int count, int ignore)
+       for (match_list_size = 0; matches[match_list_size]; match_list_size++)
+         ;
+ 
+-      if (match_list_size == 0) 
++      if (match_list_size == 0)
+ 	{
+ 	  rl_ding ();
+ 	  FREE (matches);
+@@ -2947,7 +2947,7 @@ rl_menu_complete (int count, int ignore)
+      rl_line_buffer[orig_start] and rl_line_buffer[rl_point] with
+      matches[match_list_index], and add any necessary closing char. */
+ 
+-  if (matches == 0 || match_list_size == 0) 
++  if (matches == 0 || match_list_size == 0)
+     {
+       rl_ding ();
+       FREE (matches);
+diff --git a/config.h.in b/config.h.in
+index 6de47b5..ad9515a 100644
+--- a/config.h.in
++++ b/config.h.in
+@@ -77,7 +77,7 @@
+ #undef HAVE_KILL
+ 
+ /* Define if you have the lstat function. */
+-#undef HAVE_LSTAT
++/* #define HAVE_LSTAT */
+ 
+ /* Define if you have the mbrlen function. */
+ #undef HAVE_MBRLEN
+@@ -101,7 +101,7 @@
+ #undef HAVE_READLINK
+ 
+ /* Define if you have the select function.  */
+-#undef HAVE_SELECT
++/* #undef HAVE_SELECT */
+ 
+ /* Define if you have the setenv function.  */
+ #undef HAVE_SETENV
+@@ -110,7 +110,7 @@
+ #undef HAVE_SETLOCALE
+ 
+ /* Define if you have the strcasecmp function.  */
+-#undef HAVE_STRCASECMP
++/* #undef HAVE_STRCASECMP */
+ 
+ /* Define if you have the strcoll function.  */
+ #undef HAVE_STRCOLL
+@@ -133,7 +133,7 @@
+ #undef HAVE_VSNPRINTF
+ 
+ /* Define if you have the wcrtomb function.  */
+-#undef HAVE_WCRTOMB 
++#undef HAVE_WCRTOMB
+ 
+ /* Define if you have the wcscoll function.  */
+ #undef HAVE_WCSCOLL
+@@ -150,7 +150,7 @@
+ #undef STDC_HEADERS
+ 
+ /* Define if you have the <dirent.h> header file.  */
+-#undef HAVE_DIRENT_H
++/* #undef HAVE_DIRENT_H */
+ 
+ /* Define if you have the <fcntl.h> header file.  */
+ #undef HAVE_FCNTL_H
+@@ -192,7 +192,7 @@
+ #undef HAVE_STRING_H
+ 
+ /* Define if you have the <strings.h> header file.  */
+-#undef HAVE_STRINGS_H
++/* #undef HAVE_STRINGS_H */
+ 
+ /* Define if you have the <sys/dir.h> header file.  */
+ #undef HAVE_SYS_DIR_H
+@@ -213,7 +213,7 @@
+ #undef HAVE_SYS_PTEM_H
+ 
+ /* Define if you have the <sys/select.h> header file.  */
+-#undef HAVE_SYS_SELECT_H
++/* #undef HAVE_SYS_SELECT_H */
+ 
+ /* Define if you have the <sys/stream.h> header file.  */
+ #undef HAVE_SYS_STREAM_H
+@@ -228,7 +228,7 @@
+ #undef HAVE_TERMIOS_H
+ 
+ /* Define if you have the <unistd.h> header file.  */
+-#undef HAVE_UNISTD_H
++/* #undef HAVE_UNISTD_H */
+ 
+ /* Define if you have the <varargs.h> header file.  */
+ #undef HAVE_VARARGS_H
+@@ -242,13 +242,13 @@
+ #undef HAVE_MBSTATE_T
+ 
+ /* Define if you have wchar_t in <wctype.h>. */
+-#undef HAVE_WCHAR_T 
++#undef HAVE_WCHAR_T
+ 
+ /* Define if you have wctype_t in <wctype.h>. */
+ #undef HAVE_WCTYPE_T
+ 
+-/* Define if you have wint_t in <wctype.h>. */  
+-#undef HAVE_WINT_T  
++/* Define if you have wint_t in <wctype.h>. */
++#undef HAVE_WINT_T
+ 
+ /* Define if you have <langinfo.h> and nl_langinfo(CODESET). */
+ #undef HAVE_LANGINFO_CODESET
+@@ -259,7 +259,7 @@
+ /* Definitions pulled in from aclocal.m4. */
+ #undef VOID_SIGHANDLER
+ 
+-#undef GWINSZ_IN_SYS_IOCTL
++/* #undef GWINSZ_IN_SYS_IOCTL */
+ 
+ #undef STRUCT_WINSIZE_IN_SYS_IOCTL
+ 
+@@ -267,7 +267,7 @@
+ 
+ #undef TIOCSTAT_IN_SYS_IOCTL
+ 
+-#undef FIONREAD_IN_SYS_IOCTL
++/* #undef FIONREAD_IN_SYS_IOCTL */
+ 
+ #undef SPEED_T_IN_SYS_TYPES
+ 
+diff --git a/display.c b/display.c
+index f5d3294..a9b8ff4 100644
+--- a/display.c
++++ b/display.c
+@@ -2,7 +2,7 @@
+ 
+ /* Copyright (C) 1987-2020 Free Software Foundation, Inc.
+ 
+-   This file is part of the GNU Readline Library (Readline), a library    
++   This file is part of the GNU Readline Library (Readline), a library
+    for reading lines of text with interactive input and history editing.
+ 
+    Readline is free software: you can redistribute it and/or modify
+@@ -59,7 +59,7 @@
+ #include "rlprivate.h"
+ #include "xmalloc.h"
+ 
+-#if !defined (strchr) && !defined (__STDC__)
++#if !defined (strchr) && !defined (__STDC__) && !defined (_WIN32)
+ extern char *strchr (), *strrchr ();
+ #endif /* !strchr && !__STDC__ */
+ 
+@@ -137,7 +137,7 @@ static int _rl_col_width PARAMS((const char *, int, int, int));
+ #define FACE_NORMAL	'0'
+ #define FACE_STANDOUT	'1'
+ #define FACE_INVALID	((char)1)
+-  
++
+ /* **************************************************************** */
+ /*								    */
+ /*			Display stuff				    */
+@@ -342,7 +342,7 @@ prompt_modestr (int *lenp)
+ 	\002 (^B) end non-visible characters
+    all characters except \001 and \002 (following a \001) are copied to
+    the returned string; all characters except those between \001 and
+-   \002 are assumed to be `visible'. */	
++   \002 are assumed to be `visible'. */
+ 
+ /* Possible values for FLAGS:
+ 	PMT_MULTILINE	caller indicates that this is part of a multiline prompt
+@@ -641,7 +641,7 @@ realloc_line (int minsize)
+   invisible_line = (char *)xrealloc (invisible_line, newsize);
+   inv_face = (char *)xrealloc (inv_face, newsize);
+ 
+-  delta = newsize - line_size;  
++  delta = newsize - line_size;
+   memset (visible_line + line_size, 0, delta);
+   memset (vis_face + line_size, FACE_NORMAL, delta);
+   memset (invisible_line + line_size, 1, delta);
+@@ -663,7 +663,7 @@ init_line_structures (int minsize)
+       if (line_size > minsize)
+ 	minsize = line_size;
+     }
+-   realloc_line (minsize); 
++   realloc_line (minsize);
+ 
+   if (vis_lbreaks == 0)
+     {
+@@ -735,7 +735,7 @@ _rl_optimize_redisplay (void)
+ {
+   if (_rl_vis_botlin == 0)
+     _rl_quick_redisplay = 1;
+-}  
++}
+ 
+ /* Basic redisplay algorithm.  See comments inline. */
+ void
+@@ -761,7 +761,7 @@ rl_redisplay (void)
+ 
+   /* Block keyboard interrupts because this function manipulates global
+      data structures. */
+-  _rl_block_sigint ();  
++  _rl_block_sigint ();
+   RL_SETSTATE (RL_STATE_REDISPLAYING);
+ 
+   cur_face = FACE_NORMAL;
+@@ -887,7 +887,7 @@ rl_redisplay (void)
+       } while (0)
+ #endif /* !HANDLE_MULTIBYTE */
+ 
+-#if defined (HANDLE_MULTIBYTE)	  
++#if defined (HANDLE_MULTIBYTE)
+ #define CHECK_LPOS() \
+       do { \
+ 	lpos++; \
+@@ -958,7 +958,7 @@ rl_redisplay (void)
+ 	{
+ 	  temp = local_prompt_newlines[newlines+1];
+ 	  inv_lbreaks[++newlines] = temp;
+-	}  
++	}
+ 
+       /* Now set lpos from the last newline */
+       if (mb_cur_max > 1 && rl_byte_oriented == 0 && prompt_multibyte_chars > 0)
+@@ -1043,7 +1043,7 @@ rl_redisplay (void)
+ 	      int olen;
+ 
+ 	      olen = sprintf (obuf, "\\%o", c);
+-	  
++
+ 	      if (lpos + olen >= _rl_screenwidth)
+ 		{
+ 		  temp = _rl_screenwidth - lpos;
+@@ -1295,7 +1295,7 @@ rl_redisplay (void)
+ 			_rl_last_c_pos != o_cpos &&
+ 			_rl_last_c_pos > (prompt_last_invisible - _rl_screenwidth - prompt_invis_chars_first_line))	/* XXX - rethink this last one */
+ 		/* This assumes that all the invisible characters are split
+-		   between the first and last lines of the prompt, if the 
++		   between the first and last lines of the prompt, if the
+ 		   prompt consumes more than two lines. It's usually right */
+ 		/* XXX - not sure this is ever executed */
+ 		_rl_last_c_pos -= (wrap_offset-prompt_invis_chars_first_line);
+@@ -1896,7 +1896,7 @@ update_line (char *old, char *old_face, char *new, char *new_face, int current_l
+ 	  nfdf = new_face + temp;
+ 	}
+       else
+-	{      
++	{
+ 	  memset (&ps_new, 0, sizeof(mbstate_t));
+ 	  memset (&ps_old, 0, sizeof(mbstate_t));
+ 
+@@ -2286,7 +2286,7 @@ dumb_update:
+      a bitmap that indicates which characters are visible and which are
+      invisible. We fix it up (imperfectly) in the caller and by trying to use
+      the entire prompt string wherever we can. */
+-     
++
+   /* If we are changing the number of invisible characters in a line, and
+      the spot of first difference is before the end of the invisible chars,
+      lendiff needs to be adjusted. */
+@@ -2530,7 +2530,7 @@ clear_rest_of_line:
+ 	     adjust col_lendiff based on the difference between _rl_last_c_pos
+ 	     and _rl_screenwidth */
+ 	  if (col_lendiff && ((mb_cur_max == 1 || rl_byte_oriented) || (_rl_last_c_pos < _rl_screenwidth)))
+-	    {	  
++	    {
+ 	      if (_rl_term_autowrap && current_line < inv_botlin)
+ 		space_to_eol (col_lendiff);
+ 	      else
+@@ -3019,7 +3019,7 @@ rl_message (format, arg1, arg2)
+   local_prompt_prefix = (char *)NULL;
+   local_prompt_len = local_prompt ? strlen (local_prompt) : 0;
+   (*rl_redisplay_function) ();
+-      
++
+   return 0;
+ }
+ #endif /* !USE_VARARGS */
+@@ -3129,7 +3129,7 @@ _rl_make_prompt_for_search (int pchar)
+ 	strcpy (pmt, p);
+       pmt[len] = pchar;
+       pmt[len+1] = '\0';
+-    }  
++    }
+ 
+   /* will be overwritten by expand_prompt, called from rl_message */
+   prompt_physical_chars = saved_physical_chars + 1;
+@@ -3344,7 +3344,7 @@ redraw_prompt (char *t)
+   rl_display_prompt = oldp;
+   rl_restore_prompt();
+ }
+-      
++
+ /* Redisplay the current line after a SIGWINCH is received. */
+ void
+ _rl_redisplay_after_sigwinch (void)
+diff --git a/funmap.c b/funmap.c
+index eca49a3..2695c4a 100644
+--- a/funmap.c
++++ b/funmap.c
+@@ -3,7 +3,7 @@
+ /* Copyright (C) 1987-2020 Free Software Foundation, Inc.
+ 
+    This file is part of the GNU Readline Library (Readline), a library
+-   for reading lines of text with interactive input and history editing.      
++   for reading lines of text with interactive input and history editing.
+ 
+    Readline is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+@@ -40,7 +40,7 @@
+ 
+ #include "xmalloc.h"
+ 
+-#ifdef __STDC__
++#if defined(__STDC__) || defined (_WIN32)
+ typedef int QSFUNC (const void *, const void *);
+ #else
+ typedef int QSFUNC ();
+@@ -215,7 +215,7 @@ rl_add_funmap_entry (const char *name, rl_command_func_t *function)
+       funmap_size += 64;
+       funmap = (FUNMAP **)xrealloc (funmap, funmap_size * sizeof (FUNMAP *));
+     }
+-  
++
+   funmap[funmap_entry] = (FUNMAP *)xmalloc (sizeof (FUNMAP));
+   funmap[funmap_entry]->name = name;
+   funmap[funmap_entry]->function = function;
+diff --git a/histlib.h b/histlib.h
+index 9627b24..43ca05e 100644
+--- a/histlib.h
++++ b/histlib.h
+@@ -51,7 +51,7 @@
+ #endif
+ 
+ #ifndef member
+-#  if !defined (strchr) && !defined (__STDC__)
++#  if !defined (strchr) && !defined (__STDC__) && !defined (_WIN32)
+ extern char *strchr ();
+ #  endif /* !strchr && !__STDC__ */
+ #define member(c, s) ((c) ? ((char *)strchr ((s), (c)) != (char *)NULL) : 0)
+diff --git a/keymaps.h b/keymaps.h
+index 1fa853d..b502363 100644
+--- a/keymaps.h
++++ b/keymaps.h
+@@ -3,7 +3,7 @@
+ /* Copyright (C) 1987, 1989, 1992 Free Software Foundation, Inc.
+ 
+    This file is part of the GNU Readline Library (Readline), a library
+-   for reading lines of text with interactive input and history editing.      
++   for reading lines of text with interactive input and history editing.
+ 
+    Readline is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+@@ -65,33 +65,33 @@ extern KEYMAP_ENTRY_ARRAY vi_insertion_keymap, vi_movement_keymap;
+ 
+ /* Return a new, empty keymap.
+    Free it with free() when you are done. */
+-extern Keymap rl_make_bare_keymap PARAMS((void));
++READLINE_DLL_IMPEXP Keymap rl_make_bare_keymap PARAMS((void));
+ 
+ /* Return a new keymap which is a copy of MAP. */
+-extern Keymap rl_copy_keymap PARAMS((Keymap));
++READLINE_DLL_IMPEXP Keymap rl_copy_keymap PARAMS((Keymap));
+ 
+ /* Return a new keymap with the printing characters bound to rl_insert,
+    the lowercase Meta characters bound to run their equivalents, and
+    the Meta digits bound to produce numeric arguments. */
+-extern Keymap rl_make_keymap PARAMS((void));
++READLINE_DLL_IMPEXP Keymap rl_make_keymap PARAMS((void));
+ 
+ /* Free the storage associated with a keymap. */
+-extern void rl_discard_keymap PARAMS((Keymap));
++READLINE_DLL_IMPEXP void rl_discard_keymap PARAMS((Keymap));
+ 
+ /* These functions actually appear in bind.c */
+ 
+ /* Return the keymap corresponding to a given name.  Names look like
+    `emacs' or `emacs-meta' or `vi-insert'.  */
+-extern Keymap rl_get_keymap_by_name PARAMS((const char *));
++READLINE_DLL_IMPEXP Keymap rl_get_keymap_by_name PARAMS((const char *));
+ 
+ /* Return the current keymap. */
+-extern Keymap rl_get_keymap PARAMS((void));
++READLINE_DLL_IMPEXP Keymap rl_get_keymap PARAMS((void));
+ 
+ /* Set the current keymap to MAP. */
+-extern void rl_set_keymap PARAMS((Keymap));
++READLINE_DLL_IMPEXP void rl_set_keymap PARAMS((Keymap));
+ 
+ /* Set the name of MAP to NAME */
+-extern int rl_set_keymap_name PARAMS((const char *, Keymap));
++READLINE_DLL_IMPEXP int rl_set_keymap_name PARAMS((const char *, Keymap));
+ 
+ #ifdef __cplusplus
+ }
+diff --git a/parens.c b/parens.c
+index af47977..8acb3e2 100644
+--- a/parens.c
++++ b/parens.c
+@@ -3,7 +3,7 @@
+ /* Copyright (C) 1987, 1989, 1992-2015, 2017 Free Software Foundation, Inc.
+ 
+    This file is part of the GNU Readline Library (Readline), a library
+-   for reading lines of text with interactive input and history editing.      
++   for reading lines of text with interactive input and history editing.
+ 
+    Readline is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+@@ -46,7 +46,7 @@
+ #  include <strings.h>
+ #endif /* !HAVE_STRING_H */
+ 
+-#if !defined (strchr) && !defined (__STDC__)
++#if !defined (strchr) && !defined (__STDC__) && !defined (_WIN32)
+ extern char *strchr (), *strrchr ();
+ #endif /* !strchr && !__STDC__ */
+ 
+diff --git a/rldefs.h b/rldefs.h
+index dab1beb..4664cf3 100644
+--- a/rldefs.h
++++ b/rldefs.h
+@@ -5,7 +5,7 @@
+ /* Copyright (C) 1987-2011 Free Software Foundation, Inc.
+ 
+    This file is part of the GNU Readline Library (Readline), a library
+-   for reading lines of text with interactive input and history editing.      
++   for reading lines of text with interactive input and history editing.
+ 
+    Readline is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+@@ -63,7 +63,7 @@
+ #  include <strings.h>
+ #endif /* !HAVE_STRING_H */
+ 
+-#if !defined (strchr) && !defined (__STDC__)
++#if !defined (strchr) && !defined (__STDC__) && !defined (_WIN32)
+ extern char *strchr (), *strrchr ();
+ #endif /* !strchr && !__STDC__ */
+ 
+diff --git a/rlmbutil.h b/rlmbutil.h
+index 4d3e907..b9fc00b 100644
+--- a/rlmbutil.h
++++ b/rlmbutil.h
+@@ -3,7 +3,7 @@
+ /* Copyright (C) 2001-2015 Free Software Foundation, Inc.
+ 
+    This file is part of the GNU Readline Library (Readline), a library
+-   for reading lines of text with interactive input and history editing.      
++   for reading lines of text with interactive input and history editing.
+ 
+    Readline is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+@@ -77,6 +77,12 @@
+ #  endif
+ #endif
+ 
++#ifdef HANDLE_MULTIBYTE
++int wcwidth(wchar_t ucs);
++int wcswidth(const wchar_t *pwcs, size_t n);
++int wcswidth_cjk(const wchar_t *pwcs, size_t n);
++#endif
++
+ /************************************************/
+ /* end of multibyte capability checks for I18N  */
+ /************************************************/
+diff --git a/util.c b/util.c
+index 1576b55..2d25baa 100644
+--- a/util.c
++++ b/util.c
+@@ -3,7 +3,7 @@
+ /* Copyright (C) 1987-2017 Free Software Foundation, Inc.
+ 
+    This file is part of the GNU Readline Library (Readline), a library
+-   for reading lines of text with interactive input and history editing.      
++   for reading lines of text with interactive input and history editing.
+ 
+    Readline is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+@@ -86,7 +86,7 @@ _rl_walphabetic (wchar_t wc)
+   int c;
+ 
+   if (iswalnum (wc))
+-    return (1);     
++    return (1);
+ 
+   c = wc & 0177;
+   return (_rl_allow_pathname_alphabetic_chars &&
+@@ -362,7 +362,7 @@ _rl_strpbrk (const char *string1, const char *string2)
+ }
+ #endif
+ 
+-#if !defined (HAVE_STRCASECMP)
++#if !defined (HAVE_STRCASECMP) && !defined (_WIN32)
+ /* Compare at most COUNT characters from string1 to string2.  Case
+    doesn't matter (strncasecmp). */
+ int
+-- 
+2.25.1
+
