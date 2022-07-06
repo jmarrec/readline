@@ -26,6 +26,9 @@
 #  include <config.h>
 #endif
 
+/* for native Win32 environments this is hard stuff  */
+#if !defined (_WIN32)
+
 #include <sys/types.h>
 #include <signal.h>
 #include <errno.h>
@@ -38,6 +41,12 @@
 #include "rldefs.h"
 
 #include "rltty.h"
+
+#else   /* _WIN32 */
+#include "rldefs.h"
+#include <stdio.h>
+#endif  /* _WIN32 */
+
 #if defined (HAVE_SYS_IOCTL_H)
 #  include <sys/ioctl.h>		/* include for declaration of ioctl */
 #endif
@@ -54,6 +63,7 @@ rl_voidfunc_t *rl_deprep_term_function = rl_deprep_terminal;
 
 static void set_winsize PARAMS((int));
 
+#if !defined (_WIN32)
 /* **************************************************************** */
 /*								    */
 /*		      Saving and Restoring the TTY	    	    */
@@ -477,7 +487,7 @@ set_tty_settings (int tty, TIOTYPE *tiop)
 {
   if (_set_tty_settings (tty, tiop) < 0)
     return -1;
-    
+
 #if 0
 
 #if defined (TERMIOS_TTY_DRIVER)
@@ -900,6 +910,115 @@ rltty_set_default_bindings (Keymap kmap)
 #endif
 }
 
+#else /* !_WIN32 */
+
+/* **************************************************************** */
+/*								    */
+/*		Default Key Bindings for Win32 Console              */
+/*								    */
+/* **************************************************************** */
+
+#include <windows.h>
+
+#define CONSOLE_MODE	ENABLE_PROCESSED_INPUT | ENABLE_MOUSE_INPUT
+
+/* global vars used by other modules */
+
+int	haveConsole	= 0;	/* remember init result of the console  */
+HANDLE	hStdout, hStdin;	/* these are different from stdin, stdout  */
+
+COORD	rlScreenOrigin;		/* readline origin in frame buffer coordinates */
+int	rlScreenStart = 0;	/* readline origin as frame screen buffer offset */
+COORD	rlScreenEnd;		/* end of line in frame buffer coordinates */
+int	rlScreenMax = 0;	/* end of line as linear frame buffer offset */
+
+static DWORD savedConsoleMode = 0;	/* to restore console on exit */
+
+void
+rltty_set_default_bindings (kmap)
+     Keymap kmap;
+{
+  /* I bet this is required on Win32 ;-) */
+  {
+    char buf[40]; strcpy(buf,"set bell-style none");
+    rl_parse_and_bind(buf);
+  }
+  rl_set_key ("\\M-\\�E", rl_get_previous_history, kmap);
+  rl_set_key ("\\M-\\�E", rl_get_next_history, kmap);
+  rl_set_key ("\\M-\\�E", rl_forward, kmap);
+  rl_set_key ("\\M-\\�E", rl_backward, kmap);
+
+  rl_set_key ("\\M-\\�E", rl_beg_of_line, kmap);
+  rl_set_key ("\\M-\\�E", rl_end_of_line, kmap);
+  rl_set_key ("\\M-\\�E", rl_backward_word, kmap);
+  rl_set_key ("\\M-\\�E", rl_forward_word, kmap);
+
+  rl_set_key ("\\M-\\�E", rl_paste_from_clipboard, kmap);
+  rl_set_key ("\\M-\\�E", rl_delete, kmap);
+  rl_set_key ("", rl_unix_word_rubout, kmap);
+}
+
+/* Query and set up a Window Console */
+
+void
+rl_prep_terminal (meta_flag)
+     int meta_flag;
+{
+  _rl_echoing_p = 1;
+
+  if ( !(haveConsole & INITIALIZED) )
+    {
+      if ( !(haveConsole & FOR_INPUT)
+	   && ((hStdin = GetStdHandle(STD_INPUT_HANDLE)) != INVALID_HANDLE_VALUE) )
+        {
+          DWORD dummy;
+          INPUT_RECORD irec;
+          if ( PeekConsoleInput(hStdin, &irec, 1, &dummy) )
+            {
+              haveConsole |= FOR_INPUT;
+              if ( GetConsoleMode(hStdin, &savedConsoleMode) )
+                SetConsoleMode(hStdin, CONSOLE_MODE);
+            }
+        }
+      if ( (hStdout = GetStdHandle(STD_OUTPUT_HANDLE)) != INVALID_HANDLE_VALUE)
+        {
+          CONSOLE_SCREEN_BUFFER_INFO csbi;
+          if ( GetConsoleScreenBufferInfo(hStdout, &csbi)
+               && (csbi.dwSize.X > 0) && (csbi.dwSize.Y > 0) )
+            {
+              haveConsole |= FOR_OUTPUT;
+              rlScreenOrigin = csbi.dwCursorPosition;
+              rlScreenStart = (int)csbi.dwCursorPosition.Y * (int)csbi.dwSize.X
+		+ (int)csbi.dwCursorPosition.X;
+            }
+        }
+      haveConsole |= INITIALIZED;
+    }
+}
+
+/* Restore the consoles's normal settings and modes. */
+void
+rl_deprep_terminal ()
+{
+  SetConsoleMode(hStdin, savedConsoleMode);
+  haveConsole = 0;
+}
+
+int
+rl_restart_output (count, key)
+     int count, key;
+{
+  return 0;
+}
+
+int
+rl_stop_output (count, key)
+     int count, key;
+{
+  return 0;
+}
+#endif /* _WIN32 */
+
 /* New public way to set the system default editing chars to their readline
    equivalents. */
 void
@@ -908,6 +1027,7 @@ rl_tty_set_default_bindings (Keymap kmap)
   rltty_set_default_bindings (kmap);
 }
 
+#ifndef _WIN32
 /* Rebind all of the tty special chars that readline worries about back
    to self-insert.  Call this before saving the current terminal special
    chars with save_tty_chars().  This only works on POSIX termios or termio
@@ -930,6 +1050,7 @@ rl_tty_unset_default_bindings (Keymap kmap)
   RESET_SPECIAL (_rl_tty_chars.t_werase);
 #  endif /* VWERASE && TERMIOS_TTY_DRIVER */
 }
+#endif /* _WIN32 */
 
 #if defined (HANDLE_SIGNALS)
 

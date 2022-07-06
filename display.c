@@ -2,7 +2,7 @@
 
 /* Copyright (C) 1987-2020 Free Software Foundation, Inc.
 
-   This file is part of the GNU Readline Library (Readline), a library    
+   This file is part of the GNU Readline Library (Readline), a library
    for reading lines of text with interactive input and history editing.
 
    Readline is free software: you can redistribute it and/or modify
@@ -59,7 +59,15 @@
 #include "rlprivate.h"
 #include "xmalloc.h"
 
-#if !defined (strchr) && !defined (__STDC__)
+#if defined (_WIN32)
+#include <windows.h>
+extern int haveConsole;
+extern HANDLE hStdout, hStdin;
+extern COORD rlScreenEnd;
+extern int rlScreenMax;
+#endif /* _WIN32 */
+
+#if !defined (strchr) && !defined (__STDC__) && !defined (_WIN32)
 extern char *strchr (), *strrchr ();
 #endif /* !strchr && !__STDC__ */
 
@@ -75,6 +83,12 @@ static void open_some_spaces PARAMS((int));
 static void cr PARAMS((void));
 static void redraw_prompt PARAMS((char *));
 static void _rl_move_cursor_relative PARAMS((int, const char *, const char *));
+
+#ifdef _WIN32
+# define putc(ch, stream) \
+if ((ch) == '\r') cr (); else _rl_output_character_function (ch)
+#endif
+
 
 /* Values for FLAGS */
 #define PMT_MULTILINE	0x01
@@ -137,7 +151,7 @@ static int _rl_col_width PARAMS((const char *, int, int, int));
 #define FACE_NORMAL	'0'
 #define FACE_STANDOUT	'1'
 #define FACE_INVALID	((char)1)
-  
+
 /* **************************************************************** */
 /*								    */
 /*			Display stuff				    */
@@ -342,7 +356,7 @@ prompt_modestr (int *lenp)
 	\002 (^B) end non-visible characters
    all characters except \001 and \002 (following a \001) are copied to
    the returned string; all characters except those between \001 and
-   \002 are assumed to be `visible'. */	
+   \002 are assumed to be `visible'. */
 
 /* Possible values for FLAGS:
 	PMT_MULTILINE	caller indicates that this is part of a multiline prompt
@@ -641,7 +655,7 @@ realloc_line (int minsize)
   invisible_line = (char *)xrealloc (invisible_line, newsize);
   inv_face = (char *)xrealloc (inv_face, newsize);
 
-  delta = newsize - line_size;  
+  delta = newsize - line_size;
   memset (visible_line + line_size, 0, delta);
   memset (vis_face + line_size, FACE_NORMAL, delta);
   memset (invisible_line + line_size, 1, delta);
@@ -663,7 +677,7 @@ init_line_structures (int minsize)
       if (line_size > minsize)
 	minsize = line_size;
     }
-   realloc_line (minsize); 
+   realloc_line (minsize);
 
   if (vis_lbreaks == 0)
     {
@@ -735,7 +749,7 @@ _rl_optimize_redisplay (void)
 {
   if (_rl_vis_botlin == 0)
     _rl_quick_redisplay = 1;
-}  
+}
 
 /* Basic redisplay algorithm.  See comments inline. */
 void
@@ -761,7 +775,7 @@ rl_redisplay (void)
 
   /* Block keyboard interrupts because this function manipulates global
      data structures. */
-  _rl_block_sigint ();  
+  _rl_block_sigint ();
   RL_SETSTATE (RL_STATE_REDISPLAYING);
 
   cur_face = FACE_NORMAL;
@@ -887,7 +901,7 @@ rl_redisplay (void)
       } while (0)
 #endif /* !HANDLE_MULTIBYTE */
 
-#if defined (HANDLE_MULTIBYTE)	  
+#if defined (HANDLE_MULTIBYTE)
 #define CHECK_LPOS() \
       do { \
 	lpos++; \
@@ -958,7 +972,7 @@ rl_redisplay (void)
 	{
 	  temp = local_prompt_newlines[newlines+1];
 	  inv_lbreaks[++newlines] = temp;
-	}  
+	}
 
       /* Now set lpos from the last newline */
       if (mb_cur_max > 1 && rl_byte_oriented == 0 && prompt_multibyte_chars > 0)
@@ -1043,7 +1057,7 @@ rl_redisplay (void)
 	      int olen;
 
 	      olen = sprintf (obuf, "\\%o", c);
-	  
+
 	      if (lpos + olen >= _rl_screenwidth)
 		{
 		  temp = _rl_screenwidth - lpos;
@@ -1295,7 +1309,7 @@ rl_redisplay (void)
 			_rl_last_c_pos != o_cpos &&
 			_rl_last_c_pos > (prompt_last_invisible - _rl_screenwidth - prompt_invis_chars_first_line))	/* XXX - rethink this last one */
 		/* This assumes that all the invisible characters are split
-		   between the first and last lines of the prompt, if the 
+		   between the first and last lines of the prompt, if the
 		   prompt consumes more than two lines. It's usually right */
 		/* XXX - not sure this is ever executed */
 		_rl_last_c_pos -= (wrap_offset-prompt_invis_chars_first_line);
@@ -1896,7 +1910,7 @@ update_line (char *old, char *old_face, char *new, char *new_face, int current_l
 	  nfdf = new_face + temp;
 	}
       else
-	{      
+	{
 	  memset (&ps_new, 0, sizeof(mbstate_t));
 	  memset (&ps_old, 0, sizeof(mbstate_t));
 
@@ -2286,7 +2300,7 @@ dumb_update:
      a bitmap that indicates which characters are visible and which are
      invisible. We fix it up (imperfectly) in the caller and by trying to use
      the entire prompt string wherever we can. */
-     
+
   /* If we are changing the number of invisible characters in a line, and
      the spot of first difference is before the end of the invisible chars,
      lendiff needs to be adjusted. */
@@ -2321,6 +2335,7 @@ dumb_update:
   /* col_lendiff > 0 if we are adding characters to the line */
   if (col_lendiff > 0)	/* XXX - was lendiff */
     {
+#if !defined(_WIN32)
       /* Non-zero if we're increasing the number of lines. */
       int gl = current_line >= _rl_vis_botlin && inv_botlin > _rl_vis_botlin;
 
@@ -2402,6 +2417,7 @@ dumb_update:
 	    }
 	}
       else
+#endif /* !_WIN32 */
 	{
 	  /* cannot insert chars, write to EOL */
 	  puts_face (nfd, nfdf, temp);
@@ -2428,6 +2444,7 @@ dumb_update:
     }
   else				/* Delete characters from line. */
     {
+#if !defined(_WIN32)
       /* If possible and inexpensive to use terminal deletion, then do so. */
       if (_rl_term_dc && (2 * col_temp) >= -col_lendiff)
 	{
@@ -2499,6 +2516,7 @@ dumb_update:
 	}
       /* Otherwise, print over the existing material. */
       else
+#endif /* !_WIN32 */
 	{
 	  if (temp > 0)
 	    {
@@ -2530,7 +2548,7 @@ clear_rest_of_line:
 	     adjust col_lendiff based on the difference between _rl_last_c_pos
 	     and _rl_screenwidth */
 	  if (col_lendiff && ((mb_cur_max == 1 || rl_byte_oriented) || (_rl_last_c_pos < _rl_screenwidth)))
-	    {	  
+	    {
 	      if (_rl_term_autowrap && current_line < inv_botlin)
 		space_to_eol (col_lendiff);
 	      else
@@ -2679,6 +2697,16 @@ rl_redraw_prompt_last_line (void)
 static void
 _rl_move_cursor_relative (int new, const char *data, const char *dataf)
 {
+#ifdef _WIN32
+  CONSOLE_SCREEN_BUFFER_INFO     csbi;
+  if ( (_rl_last_c_pos != new)
+       && haveConsole && GetConsoleScreenBufferInfo(hStdout, &csbi) )
+    {
+      csbi.dwCursorPosition.X += new - _rl_last_c_pos;
+      if ( SetConsoleCursorPosition(hStdout, csbi.dwCursorPosition) )
+   _rl_last_c_pos = new;
+    }
+#else /* _WIN32 */
   register int i;
   int woff;			/* number of invisible chars on current line */
   int cpos, dpos;		/* current and desired cursor positions */
@@ -2824,12 +2852,23 @@ _rl_move_cursor_relative (int new, const char *data, const char *dataf)
     _rl_backspace (cpos - dpos);
 
   _rl_last_c_pos = dpos;
+#endif /* !_WIN32__ */
 }
 
 /* PWP: move the cursor up or down. */
 void
 _rl_move_vert (int to)
 {
+#if defined (_WIN32)
+  CONSOLE_SCREEN_BUFFER_INFO	csbi;
+  if ( (_rl_last_v_pos != to) && (to <= _rl_screenheight)
+       && haveConsole && GetConsoleScreenBufferInfo(hStdout, &csbi) )
+    {
+      csbi.dwCursorPosition.Y += to - _rl_last_v_pos;
+      if ( SetConsoleCursorPosition(hStdout, csbi.dwCursorPosition) )
+        _rl_last_v_pos = to;
+    }
+#else /* !_WIN32 */
   register int delta, i;
 
   if (_rl_last_v_pos == to || to > _rl_screenheight)
@@ -2859,6 +2898,7 @@ _rl_move_vert (int to)
     }
 
   _rl_last_v_pos = to;		/* Now TO is here */
+#endif /* !_WIN32__ */
 }
 
 /* Physically print C on rl_outstream.  This is for functions which know
@@ -3019,7 +3059,7 @@ rl_message (format, arg1, arg2)
   local_prompt_prefix = (char *)NULL;
   local_prompt_len = local_prompt ? strlen (local_prompt) : 0;
   (*rl_redisplay_function) ();
-      
+
   return 0;
 }
 #endif /* !USE_VARARGS */
@@ -3129,7 +3169,7 @@ _rl_make_prompt_for_search (int pchar)
 	strcpy (pmt, p);
       pmt[len] = pchar;
       pmt[len+1] = '\0';
-    }  
+    }
 
   /* will be overwritten by expand_prompt, called from rl_message */
   prompt_physical_chars = saved_physical_chars + 1;
@@ -3157,13 +3197,30 @@ _rl_erase_at_end_of_line (int l)
 void
 _rl_clear_to_eol (int count)
 {
+#if defined (_WIN32)
+  CONSOLE_SCREEN_BUFFER_INFO	csbi;
+  if (haveConsole && GetConsoleScreenBufferInfo(hStdout, &csbi))
+    {
+      DWORD written;
+      int linear_pos;
+
+      linear_pos = (int)csbi.dwCursorPosition.Y * (int)csbi.dwSize.X + (int)csbi.dwCursorPosition.X;
+      if (linear_pos < rlScreenMax)
+      {
+        rlScreenEnd = csbi.dwCursorPosition;
+        rlScreenMax = linear_pos;
+      }
+      FillConsoleOutputCharacter(hStdout, ' ', count, csbi.dwCursorPosition, &written);
+    }
+#else /* !_WIN32 */
 #ifndef __MSDOS__
   if (_rl_term_clreol)
     tputs (_rl_term_clreol, 1, _rl_output_character_function);
   else
 #endif
-    if (count)
-      space_to_eol (count);
+  if (count)
+    space_to_eol (count);
+#endif /* _WIN32 */
 }
 
 /* Clear to the end of the line using spaces.  COUNT is the minimum
@@ -3171,12 +3228,16 @@ _rl_clear_to_eol (int count)
 static void
 space_to_eol (int count)
 {
+#if defined (_WIN32)
+  _rl_clear_to_eol (count);
+#else
   register int i;
 
   for (i = 0; i < count; i++)
     putc (' ', rl_outstream);
 
   _rl_last_c_pos += count;
+#endif /* _WIN32 */
 }
 
 void
@@ -3186,6 +3247,7 @@ _rl_clear_screen (int clrscr)
   ScreenClear ();
   ScreenSetCursor (0, 0);
 #else
+#if !defined (_WIN32)
   if (_rl_term_clrpag)
     {
       tputs (_rl_term_clrpag, 1, _rl_output_character_function);
@@ -3193,7 +3255,9 @@ _rl_clear_screen (int clrscr)
 	tputs (_rl_term_clrscroll, 1, _rl_output_character_function);
     }
   else
+#endif /* !_WIN32 */
     rl_crlf ();
+
 #endif /* __DJGPP__ */
 }
 
@@ -3211,7 +3275,7 @@ insert_some_chars (char *string, int count, int col)
 static void
 open_some_spaces (int col)
 {
-#if !defined (__MSDOS__) && (!defined (__MINGW32__) || defined (NCURSES_VERSION))
+#if !defined (__MSDOS__) && (!defined (__MINGW32__) || defined (NCURSES_VERSION)) && !defined(_WIN32)
   char *buffer;
   register int i;
 
@@ -3240,7 +3304,7 @@ open_some_spaces (int col)
       for (i = col; i--; )
 	tputs (_rl_term_ic, 1, _rl_output_character_function);
     }
-#endif /* !__MSDOS__ && (!__MINGW32__ || NCURSES_VERSION)*/
+#endif /* !__MSDOS__ && (!__MINGW32__ || NCURSES_VERSION) && !defined(_WIN32) */
 }
 
 /* Delete COUNT characters from the display line. */
@@ -3250,7 +3314,7 @@ delete_chars (int count)
   if (count > _rl_screenwidth)	/* XXX */
     return;
 
-#if !defined (__MSDOS__) && (!defined (__MINGW32__) || defined (NCURSES_VERSION))
+#if !defined (__MSDOS__) && (!defined (__MINGW32__) || defined (NCURSES_VERSION)) && !defined(_WIN32)
   if (_rl_term_DC && *_rl_term_DC)
     {
       char *buffer;
@@ -3263,7 +3327,7 @@ delete_chars (int count)
 	while (count--)
 	  tputs (_rl_term_dc, 1, _rl_output_character_function);
     }
-#endif /* !__MSDOS__ && (!__MINGW32__ || NCURSES_VERSION)*/
+#endif /* !__MSDOS__ && (!__MINGW32__ || NCURSES_VERSION) && !defined(_WIN32)*/
 }
 
 void
@@ -3315,8 +3379,12 @@ _rl_update_final (void)
 static void
 cr (void)
 {
+#if defined (_WIN32)
+  _rl_move_cursor_relative (0, 0, 0);
+#else
   _rl_cr ();
   _rl_last_c_pos = 0;
+#endif /* _WIN32 */
 }
 
 /* Redraw the last line of a multi-line prompt that may possibly contain
@@ -3344,7 +3412,7 @@ redraw_prompt (char *t)
   rl_display_prompt = oldp;
   rl_restore_prompt();
 }
-      
+
 /* Redisplay the current line after a SIGWINCH is received. */
 void
 _rl_redisplay_after_sigwinch (void)
@@ -3357,21 +3425,28 @@ _rl_redisplay_after_sigwinch (void)
      screen line. */
   if (_rl_term_cr)
     {
+#if defined (_WIN32)
+      _rl_move_cursor_relative (0, 0, 0);
+      space_to_eol (_rl_screenwidth);
+      _rl_move_cursor_relative (0, 0, 0);
+#else
       _rl_move_vert (_rl_vis_botlin);
 
       _rl_cr ();
+#endif
       _rl_last_c_pos = 0;
 
-#if !defined (__MSDOS__)
+#if !defined (__MSDOS__) && !defined(_WIN32)
       if (_rl_term_clreol)
 	tputs (_rl_term_clreol, 1, _rl_output_character_function);
       else
 #endif
+#if !defined(_WIN32)
 	{
 	  space_to_eol (_rl_screenwidth);
 	  _rl_cr ();
 	}
-
+#endif
       if (_rl_last_v_pos > 0)
 	_rl_move_vert (0);
     }

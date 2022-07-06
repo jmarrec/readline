@@ -3,7 +3,7 @@
 /* Copyright (C) 1993-2009 Free Software Foundation, Inc.
 
    This file is part of the GNU Readline Library (Readline), a library
-   for reading lines of text with interactive input and history editing.      
+   for reading lines of text with interactive input and history editing.
 
    Readline is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,6 +40,30 @@
 #  if __GNUC__ < 2 || (__GNUC__ == 2 && __GNUC_MINOR__ < 8)
 #    define __attribute__(x)
 #  endif
+#endif
+
+#ifndef __GNUC__
+# define __DLL_IMPORT__  __declspec(dllimport)
+# define __DLL_EXPORT__  __declspec(dllexport)
+#else
+# define __DLL_IMPORT__  __attribute__((dllimport)) extern
+# define __DLL_EXPORT__  __attribute__((dllexport)) extern
+#endif
+
+#if (defined __WIN32__) || (defined _WIN32)
+# ifdef BUILD_READLINE_DLL
+#  define READLINE_DLL_IMPEXP     __DLL_EXPORT__
+# elif defined(READLINE_STATIC)
+#  define READLINE_DLL_IMPEXP
+# elif defined (USE_READLINE_DLL)
+#  define READLINE_DLL_IMPEXP     __DLL_IMPORT__
+# elif defined (USE_READLINE_STATIC)
+#  define READLINE_DLL_IMPEXP
+# else /* assume USE_READLINE_DLL */
+#  define READLINE_DLL_IMPEXP     __DLL_IMPORT__
+# endif
+#else /* __WIN32__ */
+# define READLINE_DLL_IMPEXP
 #endif
 
 /* Moved from config.h.in because readline.h:rl_message depends on these

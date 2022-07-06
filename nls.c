@@ -3,7 +3,7 @@
 /* Copyright (C) 1996-2017 Free Software Foundation, Inc.
 
    This file is part of the GNU Readline Library (Readline), a library
-   for reading lines of text with interactive input and history editing.      
+   for reading lines of text with interactive input and history editing.
 
    Readline is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -56,7 +56,7 @@
 
 static int utf8locale PARAMS((char *));
 
-#if !defined (HAVE_SETLOCALE)    
+#if !defined (HAVE_SETLOCALE)
 /* A list of legal values for the LANG or LC_CTYPE environment variables.
    If a locale name in this list is the value for the LC_ALL, LC_CTYPE,
    or LANG environment variable (using the first of those with a value),
@@ -155,6 +155,7 @@ _rl_init_eightbit (void)
 
   t = _rl_init_locale ();	/* returns static pointer */
 
+#ifndef _WIN32
   if (t && *t && (t[0] != 'C' || t[1]) && (STREQ (t, "POSIX") == 0))
     {
       _rl_meta_flag = 1;
@@ -163,6 +164,7 @@ _rl_init_eightbit (void)
       return (1);
     }
   else
+#endif
     return (0);
 
 #else /* !HAVE_SETLOCALE */
@@ -254,7 +256,7 @@ find_codeset (char *name, size_t *lenp)
   /* This does not make sense: language has to be specified.  As
      an exception we allow the variable to contain only the codeset
      name.  Perhaps there are funny codeset names.  */
-  if (language == cp) 
+  if (language == cp)
     {
       *lenp = strlen (language);
       result = language;

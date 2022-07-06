@@ -60,7 +60,7 @@
 
 #include <ctype.h>
 
-#if defined (__EMX__)
+#if defined (__EMX__) || defined (__MINW32__)
 #  undef HAVE_MMAP
 #endif
 
@@ -84,20 +84,21 @@
 #if defined(_WIN32)
 #  define WIN32_LEAN_AND_MEAN
 #  include <windows.h>
+#  include <io.h>  // TODO: Maybe not needed
 #endif
 
 /* If we're compiling for __EMX__ (OS/2) or __CYGWIN__ (cygwin32 environment
    on win 95/98/nt), we want to open files with O_BINARY mode so that there
    is no \n -> \r\n conversion performed.  On other systems, we don't want to
    mess around with O_BINARY at all, so we ensure that it's defined to 0. */
-#if defined (__EMX__) || defined (__CYGWIN__)
+#if defined (__EMX__) || defined (__CYGWIN__) || defined (_WIN32)
 #  ifndef O_BINARY
 #    define O_BINARY 0
 #  endif
-#else /* !__EMX__ && !__CYGWIN__ */
+#else /* !__EMX__ && !__CYGWIN__ && !_WIN32 */
 #  undef O_BINARY
 #  define O_BINARY 0
-#endif /* !__EMX__ && !__CYGWIN__ */
+#endif /* !__EMX__ && !__CYGWIN__ && !_WIN32 */
 
 #include <errno.h>
 #if !defined (errno)
@@ -147,6 +148,10 @@ static int histfile_backup PARAMS((const char *, const char *));
 static int histfile_restore PARAMS((const char *, const char *));
 static int history_rename PARAMS((const char *, const char *));
 
+#ifdef _WIN32
+#include "rldefs.h"
+#endif
+
 /* Return the string that should be used in the place of this
    filename.  This only matters when you don't specify the
    filename to read_history (), or write_history (). */
@@ -161,11 +166,19 @@ history_filename (const char *filename)
 
   if (return_val)
     return (return_val);
-  
+
   home = sh_get_env_value ("HOME");
 #if defined (_WIN32)
-  if (home == 0)
+  if (home == 0) {
+#if defined (INITFILES_IN_REGISTRY)
+      return_val = _rl_get_user_registry_string (READLINE_REGKEY, HISTFILE_REGVAL);
+      if (return_val)
+        return (return_val);
+      free (return_val);
+#else
     home = sh_get_env_value ("APPDATA");
+#endif /* INITFILES_IN_REGISTRY */
+  }
 #endif
 
   if (home == 0)
@@ -194,7 +207,7 @@ history_backupfile (const char *filename)
   ssize_t n;
   struct stat fs;
 
-  fn = filename;  
+  fn = filename;
 #if defined (HAVE_READLINK)
   /* Follow symlink to avoid backing up symlink itself; call will fail if
      not a symlink */
@@ -204,7 +217,7 @@ history_backupfile (const char *filename)
       fn = linkbuf;
     }
 #endif
-      
+
   len = strlen (fn);
   ret = xmalloc (len + 2);
   strcpy (ret, fn);
@@ -212,7 +225,7 @@ history_backupfile (const char *filename)
   ret[len+1] = '\0';
   return ret;
 }
-  
+
 static char *
 history_tempfile (const char *filename)
 {
@@ -223,7 +236,7 @@ history_tempfile (const char *filename)
   struct stat fs;
   int pid;
 
-  fn = filename;  
+  fn = filename;
 #if defined (HAVE_READLINK)
   /* Follow symlink so tempfile created in the same directory as any symlinked
      history file; call will fail if not a symlink */
@@ -233,7 +246,7 @@ history_tempfile (const char *filename)
       fn = linkbuf;
     }
 #endif
-      
+
   len = strlen (fn);
   ret = xmalloc (len + 11);
   strcpy (ret, fn);
@@ -251,7 +264,7 @@ history_tempfile (const char *filename)
 
   return ret;
 }
-  
+
 /* Add the contents of FILENAME to the history list, a line at a time.
    If FILENAME is NULL, then read from ~/.history.  Returns 0 if
    successful, or errno if not. */
@@ -512,7 +525,7 @@ histfile_restore (const char *backup, const char *orig)
 
 #define SHOULD_CHOWN(finfo, nfinfo) \
   (finfo.st_uid != nfinfo.st_uid || finfo.st_gid != nfinfo.st_gid)
-  
+
 /* Truncate the history file FNAME, leaving only LINES trailing lines.
    If FNAME is NULL, then use ~/.history.  Writes a new file and renames
    it to the original name.  Returns 0 on success, errno on failure. */
@@ -749,7 +762,7 @@ mmap_error:
 	FREE (tempname);
 	return rv;
       }
-#else    
+#else
     buffer = (char *)malloc (buffer_size);
     if (buffer == 0)
       {
