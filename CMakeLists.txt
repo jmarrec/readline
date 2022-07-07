@@ -15,6 +15,19 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR} # thats where the config.h is located
 )
 
+add_library(history
+  history.h
+  history.c
+  histexpand.c
+  histfile.c
+  histsearch.c
+  shell.c
+  mbutil.c
+  xfree.c
+  xmalloc.h
+  xmalloc.c
+)
+
 add_library(readline
   readline.c
   funmap.c
@@ -51,6 +64,11 @@ add_library(readline
   support/wcwidth.c)
 
 install(TARGETS readline
+    RUNTIME DESTINATION bin
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib)
+
+install(TARGETS history
     RUNTIME DESTINATION bin
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib)
