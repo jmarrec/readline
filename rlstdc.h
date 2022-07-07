@@ -63,7 +63,7 @@
 #  define READLINE_DLL_IMPEXP     __DLL_IMPORT__
 # endif
 #else /* __WIN32__ */
-# define READLINE_DLL_IMPEXP
+# define READLINE_DLL_IMPEXP extern
 #endif
 
 /* Moved from config.h.in because readline.h:rl_message depends on these
