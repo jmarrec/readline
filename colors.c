@@ -24,7 +24,9 @@
    Flaherty <dennisf@denix.elk.miles.com> based on original patches by
    Greg Lee <lee@uhunix.uhcc.hawaii.edu>.  */
 
-#define READLINE_LIBRARY
+#ifndef READLINE_LIBRARY
+#  define READLINE_LIBRARY
+#endif
 
 #if defined (HAVE_CONFIG_H)
 #  include <config.h>

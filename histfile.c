@@ -23,7 +23,9 @@
    don't have to know what data types are used, just what functions
    you can call.  I think I have done that. */
 
-#define READLINE_LIBRARY
+#ifndef READLINE_LIBRARY
+#  define READLINE_LIBRARY
+#endif
 
 #if defined (__TANDEM)
 #  define _XOPEN_SOURCE_EXTENDED 1

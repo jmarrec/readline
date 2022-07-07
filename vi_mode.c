@@ -20,7 +20,9 @@
    along with Readline.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#define READLINE_LIBRARY
+#ifndef READLINE_LIBRARY
+#  define READLINE_LIBRARY
+#endif
 
 /* **************************************************************** */
 /*								    */
