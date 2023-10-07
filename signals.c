@@ -3,7 +3,7 @@
 /* Copyright (C) 1987-2017 Free Software Foundation, Inc.
 
    This file is part of the GNU Readline Library (Readline), a library
-   for reading lines of text with interactive input and history editing.      
+   for reading lines of text with interactive input and history editing.
 
    Readline is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,7 +19,9 @@
    along with Readline.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#define READLINE_LIBRARY
+#ifndef READLINE_LIBRARY
+#  define READLINE_LIBRARY
+#endif
 
 #if defined (HAVE_CONFIG_H)
 #  include <config.h>
@@ -78,13 +80,15 @@ typedef struct { SigHandler *sa_handler; int sa_mask, sa_flags; } sighandler_cxt
 #  define SA_RESTART 0
 #endif
 
+#if !defined (_WIN32)
 static SigHandler *rl_set_sighandler PARAMS((int, SigHandler *, sighandler_cxt *));
 static void rl_maybe_set_sighandler PARAMS((int, SigHandler *, sighandler_cxt *));
 static void rl_maybe_restore_sighandler PARAMS((int, sighandler_cxt *));
+#endif
 
 static RETSIGTYPE rl_signal_handler PARAMS((int));
 static RETSIGTYPE _rl_handle_signal PARAMS((int));
-     
+
 /* Exported variables for use by applications. */
 
 /* If non-zero, readline will install its own signal handlers for
@@ -110,12 +114,15 @@ int _rl_quit_char = 0;
 int _rl_susp_char = 0;
 
 static int signals_set_flag;
+#ifdef SIGWINCH
 static int sigwinch_set_flag;
+#endif
 
 #if defined (HAVE_POSIX_SIGNALS)
 sigset_t _rl_orig_sigset;
 #endif /* !HAVE_POSIX_SIGNALS */
 
+#if !defined (_WIN32)
 /* **************************************************************** */
 /*					        		    */
 /*			   Signal Handling                          */
@@ -320,7 +327,7 @@ _rl_handle_signal (int sig)
 #endif /* !HAVE_POSIX_SIGNALS */
 #endif
 
-      rl_reset_after_signal ();      
+      rl_reset_after_signal ();
     }
 
   RL_UNSETSTATE(RL_STATE_SIGHANDLER);
@@ -465,7 +472,7 @@ rl_set_signals (void)
       sigaddset (&bset, SIGTTOU);
 #endif
       sigmask_set = 1;
-    }      
+    }
 #endif /* HAVE_POSIX_SIGNALS */
 
   if (rl_catch_signals && signals_set_flag == 0)
@@ -585,6 +592,7 @@ rl_clear_signals (void)
 
   return 0;
 }
+#endif /* !_WIN32 */
 
 /* Clean up the terminal and readline state after catching a signal, before
    resending it to the calling application. */
@@ -610,7 +618,7 @@ rl_reset_after_signal (void)
 /* Free up the readline variable line state for the current line (undo list,
    any partial history entry, any keyboard macros in progress, and any
    numeric arguments in process) after catching a signal, before calling
-   rl_cleanup_after_signal(). */ 
+   rl_cleanup_after_signal(). */
 void
 rl_free_line_state (void)
 {
@@ -638,7 +646,57 @@ rl_check_signals (void)
 {
   RL_CHECK_SIGNALS ();
 }
+
+#if defined (_WIN32)
+
+#include <windows.h>
+#include <signal.h>
+#include <stdio.h>
+
+/* Handling of CTRL_C_EVENT, CTRL_CLOSE_EVENT, CTRL_BREAK_EVENT,
+ * CTRL_LOGOFF_EVENT, CTRL_SHUTDOWN_EVENT,
+ * WINDOW_BUFFER_SIZE_EVENTs are handled separately see input.c
+ */
+
+BOOL CtrlEventHandler(DWORD dwEventType)
+{
+  if (dwEventType == CTRL_C_EVENT)
+    rl_free_line_state ();
+  rl_cleanup_after_signal ();
+  if (dwEventType == CTRL_C_EVENT)	/* special treatment */
+    {
+      if (rl_catch_signals == 1)	/* > 1: handled only locally */
+	{
+	  raise(SIGINT);		/* pass to program signal hadler */
+	  rl_reset_after_signal();	/* on return goon */
+	}
+      return TRUE;			/* don't pass to upstream handlers */
+    }
+  return FALSE; 			/* pass other events to handler chain */
+}
+
+int
+rl_set_signals ()
+{
+  if (rl_catch_signals && signals_set_flag == 0)
+    signals_set_flag = SetConsoleCtrlHandler( (PHANDLER_ROUTINE) CtrlEventHandler, TRUE);
+  return signals_set_flag;
+}
+
+int
+rl_clear_signals ()
+{
+  if ( signals_set_flag )
+    if ( SetConsoleCtrlHandler( (PHANDLER_ROUTINE) CtrlEventHandler, FALSE) )
+      signals_set_flag = 0;
+  return signals_set_flag;
+}
+
+#endif	/* _WIN32  */
+
 #endif  /* HANDLE_SIGNALS */
+
+
 
 /* **************************************************************** */
 /*								    */

@@ -22,7 +22,9 @@
 /* The goal is to make the implementation transparent, so that you
    don't have to know what data types are used, just what functions
    you can call.  I think I have done that. */
-#define READLINE_LIBRARY
+#ifndef READLINE_LIBRARY
+#  define READLINE_LIBRARY
+#endif
 
 #if defined (HAVE_CONFIG_H)
 #  include <config.h>

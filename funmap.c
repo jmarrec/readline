@@ -3,7 +3,7 @@
 /* Copyright (C) 1987-2020 Free Software Foundation, Inc.
 
    This file is part of the GNU Readline Library (Readline), a library
-   for reading lines of text with interactive input and history editing.      
+   for reading lines of text with interactive input and history editing.
 
    Readline is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,7 +19,9 @@
    along with Readline.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#define READLINE_LIBRARY
+#ifndef READLINE_LIBRARY
+#  define READLINE_LIBRARY
+#endif
 
 #if defined (HAVE_CONFIG_H)
 #  include <config.h>
@@ -40,13 +42,13 @@
 
 #include "xmalloc.h"
 
-#ifdef __STDC__
+#if defined(__STDC__) || defined (_WIN32)
 typedef int QSFUNC (const void *, const void *);
 #else
 typedef int QSFUNC ();
 #endif
 
-extern int _rl_qsort_string_compare PARAMS((char **, char **));
+READLINE_DLL_IMPEXP int _rl_qsort_string_compare PARAMS((char **, char **));
 
 FUNMAP **funmap;
 static int funmap_size;
@@ -56,6 +58,9 @@ static int funmap_entry;
    program specific function. */
 int funmap_program_specific_entry_start;
 
+#ifdef READLINE_DLL_IMPEXP
+# undef READLINE_DLL_IMPEXP
+#endif /* READLINE_DLL_IMPEXP */
 static const FUNMAP default_funmap[] = {
   { "abort", rl_abort },
   { "accept-line", rl_newline },
@@ -215,7 +220,7 @@ rl_add_funmap_entry (const char *name, rl_command_func_t *function)
       funmap_size += 64;
       funmap = (FUNMAP **)xrealloc (funmap, funmap_size * sizeof (FUNMAP *));
     }
-  
+
   funmap[funmap_entry] = (FUNMAP *)xmalloc (sizeof (FUNMAP));
   funmap[funmap_entry]->name = name;
   funmap[funmap_entry]->function = function;

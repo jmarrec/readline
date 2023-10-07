@@ -5,7 +5,7 @@
 /* Copyright (C) 1987-2011 Free Software Foundation, Inc.
 
    This file is part of the GNU Readline Library (Readline), a library
-   for reading lines of text with interactive input and history editing.      
+   for reading lines of text with interactive input and history editing.
 
    Readline is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,7 +63,7 @@
 #  include <strings.h>
 #endif /* !HAVE_STRING_H */
 
-#if !defined (strchr) && !defined (__STDC__)
+#if !defined (strchr) && !defined (__STDC__) && !defined (_WIN32)
 extern char *strchr (), *strrchr ();
 #endif /* !strchr && !__STDC__ */
 
@@ -78,15 +78,18 @@ extern char *strchr (), *strrchr ();
 #if defined (HAVE_STRCASECMP)
 #define _rl_stricmp strcasecmp
 #define _rl_strnicmp strncasecmp
+#elif defined (_WIN32)
+#define _rl_stricmp stricmp
+#define _rl_strnicmp strnicmp
 #else
-extern int _rl_stricmp PARAMS((const char *, const char *));
-extern int _rl_strnicmp PARAMS((const char *, const char *, int));
+READLINE_DLL_IMPEXP int _rl_stricmp PARAMS((const char *, const char *));
+READLINE_DLL_IMPEXP int _rl_strnicmp PARAMS((const char *, const char *, int));
 #endif
 
 #if defined (HAVE_STRPBRK) && !defined (HAVE_MULTIBYTE)
 #  define _rl_strpbrk(a,b)	strpbrk((a),(b))
 #else
-extern char *_rl_strpbrk PARAMS((const char *, const char *));
+READLINE_DLL_IMPEXP char *_rl_strpbrk PARAMS((const char *, const char *));
 #endif
 
 #if !defined (emacs_mode)
@@ -159,6 +162,31 @@ extern char *_rl_strpbrk PARAMS((const char *, const char *));
 #if !defined (SWAP)
 #  define SWAP(s, e)  do { int t; t = s; s = e; e = t; } while (0)
 #endif
+
+
+#if defined (_WIN32)
+#define WAIT_FOR_INPUT 200	/* milliseconds to suspend maximally
+ 				   when waiting for input */
+#define FOR_INPUT	1	/* flags for open state of the console  */
+#define FOR_OUTPUT	2
+#define INITIALIZED	4
+
+/* undefine this when readline / history should not look into the registry
+   for the path to their init files  */
+#define INITFILES_IN_REGISTRY 0  // TODO: I'm trying to switch it off
+
+#if defined (INITFILES_IN_REGISTRY)
+/* We also try to get the .inputrc and .history file paths from the registry,
+   define what to look for */
+#define READLINE_REGKEY	"Software\\Free Software Foundation\\libreadline"
+#define INPUTRC_REGVAL	"inputrc-file"
+#define HISTFILE_REGVAL	"history-file"
+
+READLINE_DLL_IMPEXP char *_rl_get_user_registry_string (char *keyName, char* valName);
+
+#endif
+
+#endif	/* _WIN32  */
 
 /* CONFIGURATION SECTION */
 #include "rlconf.h"

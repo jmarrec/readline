@@ -4,7 +4,7 @@
 /* Copyright (C) 1997-2009,2017 Free Software Foundation, Inc.
 
    This file is part of the GNU Readline Library (Readline), a library
-   for reading lines of text with interactive input and history editing.      
+   for reading lines of text with interactive input and history editing.
 
    Readline is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,13 +20,16 @@
    along with Readline.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#define READLINE_LIBRARY
+#ifndef READLINE_LIBRARY
+#  define READLINE_LIBRARY
+#endif
 
 #if defined (HAVE_CONFIG_H)
 #  include <config.h>
 #endif
 
 #include <sys/types.h>
+#include <stdio.h>
 
 #if defined (HAVE_UNISTD_H)
 #  include <unistd.h>
@@ -51,11 +54,13 @@
 #if defined (HAVE_FCNTL_H)
 #include <fcntl.h>
 #endif
-#if defined (HAVE_PWD_H)
+#if defined (HAVE_PWD_H) && !defined (_WIN32)
 #include <pwd.h>
 #endif
+#if defined (_WIN32)
+#include <windows.h>
+#endif /* _WIN32 */
 
-#include <stdio.h>
 
 #include "rlstdc.h"
 #include "rlshell.h"
@@ -155,6 +160,7 @@ char *
 sh_get_home_dir (void)
 {
   static char *home_dir = (char *)NULL;
+#if !defined (_WIN32)
   struct passwd *entry;
 
   if (home_dir)
@@ -174,6 +180,9 @@ sh_get_home_dir (void)
 #if defined (HAVE_GETPWENT)
   endpwent ();		/* some systems need this */
 #endif
+#else
+  home_dir = sh_get_env_value ("HOME");
+#endif /* !_WIN32 */
 
   return (home_dir);
 }
@@ -184,6 +193,7 @@ sh_get_home_dir (void)
 #  endif
 #endif
 
+#if !defined (_WIN32)
 int
 sh_unset_nodelay_mode (int fd)
 {
@@ -212,3 +222,29 @@ sh_unset_nodelay_mode (int fd)
 
   return 0;
 }
+#else /* !_WIN32  */
+
+char *
+_rl_get_user_registry_string (char *keyName, char* valName)
+{
+  char *result = NULL;
+  HKEY subKey;
+  if ( keyName && (RegOpenKeyEx(HKEY_CURRENT_USER, keyName, 0, KEY_READ, &subKey)
+        == ERROR_SUCCESS) )
+  {
+    DWORD type;
+    char *chtry = NULL;
+    DWORD bufSize = 0;
+
+    if ( (RegQueryValueExA(subKey, valName, NULL, &type, chtry, &bufSize)
+          == ERROR_SUCCESS) && (type == REG_SZ) )
+    {
+      if ( (chtry = (char *)xmalloc(bufSize))
+          && (RegQueryValueExA(subKey, valName, NULL, &type, chtry, &bufSize)
+            == ERROR_SUCCESS) )
+        result = chtry;
+    }
+  }
+  return result;
+}
+#endif /* !_WIN32  */

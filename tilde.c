@@ -34,7 +34,7 @@
 #  include <string.h>
 #else /* !HAVE_STRING_H */
 #  include <strings.h>
-#endif /* !HAVE_STRING_H */  
+#endif /* !HAVE_STRING_H */
 
 #if defined (HAVE_STDLIB_H)
 #  include <stdlib.h>
@@ -43,9 +43,13 @@
 #endif /* HAVE_STDLIB_H */
 
 #include <sys/types.h>
+#ifndef _WIN32
 #if defined (HAVE_PWD_H)
 #include <pwd.h>
 #endif
+#else /* _WIN32 */
+#include <windows.h>
+#endif /* _WIN32 */
 
 #include "tilde.h"
 
@@ -236,7 +240,7 @@ tilde_expand (const char *string)
       if (expansion == 0)
 	expansion = tilde_word;
       else
-	xfree (tilde_word);	
+	xfree (tilde_word);
 
       len = strlen (expansion);
 #ifdef __CYGWIN__
@@ -337,7 +341,12 @@ tilde_expand_word (const char *filename)
 {
   char *dirname, *expansion, *username;
   int user_len;
+#if !defined (_WIN32)
   struct passwd *user_entry;
+#else /* _WIN32 */
+  char UserName[256];
+  unsigned long UserLen = 256;
+#endif /* _WIN32 */
 
   if (filename == 0)
     return ((char *)NULL);
@@ -382,6 +391,7 @@ tilde_expand_word (const char *filename)
   /* No preexpansion hook, or the preexpansion hook failed.  Look in the
      password database. */
   dirname = (char *)NULL;
+#if !defined (_WIN32)
 #if defined (HAVE_GETPWNAM)
   user_entry = getpwnam (username);
 #else
@@ -414,6 +424,16 @@ tilde_expand_word (const char *filename)
 #if defined (HAVE_GETPWENT)
   endpwent ();
 #endif
+#else /* _WIN32 */
+  if (GetUserName (UserName, &UserLen))
+    {
+      if (!stricmp (username, UserName))
+	dirname = glue_prefix_and_suffix (sh_get_home_dir (), filename, user_len);
+      else if (dirname == 0)
+	dirname = savestring (filename);
+    }
+  free (username);
+#endif /* _WIN32 */
   return (dirname);
 }
 

@@ -3,7 +3,7 @@
 /* Copyright (C) 1996-2017 Free Software Foundation, Inc.
 
    This file is part of the GNU Readline Library (Readline), a library
-   for reading lines of text with interactive input and history editing.      
+   for reading lines of text with interactive input and history editing.
 
    Readline is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,7 +19,9 @@
    along with Readline.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#define READLINE_LIBRARY
+#ifndef READLINE_LIBRARY
+#  define READLINE_LIBRARY
+#endif
 
 #if defined (HAVE_CONFIG_H)
 #  include <config.h>
@@ -51,14 +53,23 @@
 /* System-specific feature definitions and include files. */
 #include "rldefs.h"
 
+#if defined (_WIN32)
+# include <windows.h>
+extern int haveConsole;	/* imported from rltty.c  */
+extern HANDLE hStdout, hStdin;
+extern COORD rlScreenEnd;
+extern int rlScreenMax;
+#else /* !_WIN32 */
+#if defined (HAVE_SYS_IOCTL_H)
+#  include <sys/ioctl.h>		/* include for declaration of ioctl */
+#endif
+#endif /* !_WIN32 */
+
 #ifdef __MSDOS__
 #  include <pc.h>
 #endif
 
 #include "rltty.h"
-#if defined (HAVE_SYS_IOCTL_H)
-#  include <sys/ioctl.h>		/* include for declaration of ioctl */
-#endif
 #include "tcap.h"
 
 /* Some standard library routines. */
@@ -95,7 +106,7 @@ int rl_change_environment = 1;
 /*								    */
 /* **************************************************************** */
 
-#ifndef __MSDOS__
+#if !defined(__MSDOS__) && !defined (_WIN32)
 static char *term_buffer = (char *)NULL;
 static char *term_string_buffer = (char *)NULL;
 #endif
@@ -104,7 +115,7 @@ static int tcap_initialized;
 
 #if !defined (__linux__) && !defined (NCURSES_VERSION)
 #  if defined (__EMX__) || defined (NEED_EXTERN_PC)
-extern 
+extern
 #  endif /* __EMX__ || NEED_EXTERN_PC */
 char PC, *BC, *UP;
 #endif /* !__linux__ && !NCURSES_VERSION */
@@ -243,6 +254,7 @@ _win_get_screensize (int *swp, int *shp)
    to the terminal.  If IGNORE_ENV is true, we do not pay attention to the
    values of $LINES and $COLUMNS.  The tests for TERM_STRING_BUFFER being
    non-null serve to check whether or not we have initialized termcap. */
+#if !defined (_WIN32)
 void
 _rl_get_screen_size (int tty, int ignore_env)
 {
@@ -332,6 +344,27 @@ _rl_get_screen_size (int tty, int ignore_env)
 
   _rl_screenchars = _rl_screenwidth * _rl_screenheight;
 }
+#else	/* _WIN32*/
+void
+_rl_get_screen_size (tty, ignore_env)
+     int tty, ignore_env;
+{
+  CONSOLE_SCREEN_BUFFER_INFO csbi;
+
+  if ( (haveConsole & FOR_OUTPUT) &&
+       GetConsoleScreenBufferInfo(hStdout, &csbi) )
+    {
+      _rl_screenwidth = csbi.dwSize.X;
+      _rl_screenheight = csbi.dwSize.Y;
+    }
+  else
+    {
+      _rl_screenwidth = 80;
+      _rl_screenheight = 24;
+    }
+  _rl_screenchars = _rl_screenwidth * _rl_screenheight;
+}
+#endif	/* _WIN32  */
 
 void
 _rl_set_screen_size (int rows, int cols)
@@ -378,7 +411,7 @@ _rl_sigwinch_resize_terminal (void)
 {
   _rl_get_screen_size (fileno (rl_instream), 1);
 }
-	
+
 void
 rl_resize_terminal (void)
 {
@@ -392,6 +425,7 @@ rl_resize_terminal (void)
     }
 }
 
+#if !defined (_WIN32)
 struct _tc_string {
      const char * const tc_var;
      char **tc_value;
@@ -450,10 +484,36 @@ get_term_capabilities (char **bp)
 #endif
   tcap_initialized = 1;
 }
+#endif /* !_WIN32 */
 
 int
 _rl_init_terminal_io (const char *terminal_name)
 {
+#if defined (_WIN32)
+  _rl_term_cr = "\r";						/* any value != 0  */
+  _rl_term_im = _rl_term_ei = _rl_term_ic = _rl_term_IC = (char *)NULL;	/* !! we emulate insertion  */
+  _rl_term_up = "y";						/* any value != 0  */
+  _rl_term_dc = _rl_term_DC =  (char *)NULL;			/* !! we emulate deletion  */
+  _rl_visible_bell = (char *)NULL;
+
+  _rl_get_screen_size (0, 1);
+
+  /* Let Windows handle meta keys!  */
+  term_has_meta = 0;
+  _rl_term_mm = _rl_term_mo = (char *)NULL;
+
+  /* It probably has arrow keys, but I don't know what they are. */
+  _rl_term_ku = _rl_term_kd = _rl_term_kr = _rl_term_kl = (char *)NULL;
+
+#if defined (HACK_TERMCAP_MOTION)
+  _rl_term_forward_char = (char *)NULL;
+#endif /* HACK_TERMCAP_MOTION */
+
+  _rl_terminal_can_insert = 0;
+  _rl_term_autowrap = 1;
+
+#else /* !_WIN32 */
+
   const char *term;
   char *buffer;
   int tty, tgetent_ret, dumbterm;
@@ -605,10 +665,13 @@ _rl_init_terminal_io (const char *terminal_name)
      bracketed paste mode, so we assume a terminal named "dumb" does not. */
   if (dumbterm)
     _rl_enable_bracketed_paste = 0;
-    
+
+#endif /* !_WIN32 */
+
   return 0;
 }
 
+#if !defined (_WIN32)
 /* Bind the arrow key sequences from the termcap description in MAP. */
 static void
 bind_termcap_arrow_keys (Keymap map)
@@ -646,6 +709,7 @@ rl_get_termcap (const char *cap)
     }
   return ((char *)NULL);
 }
+#endif /* !_WIN32 */
 
 /* Re-initialize the terminal considering that the TERM/TERMCAP variable
    has changed. */
@@ -657,6 +721,7 @@ rl_reset_terminal (const char *terminal_name)
   return 0;
 }
 
+#if !defined (_WIN32)
 /* A function for the use of tputs () */
 #ifdef _MINIX
 void
@@ -711,7 +776,7 @@ rl_crlf (void)
 void
 _rl_cr (void)
 {
-#if defined (__MSDOS__)
+#if defined (__MSDOS__) || defined (_WIN32)
   putc ('\r', rl_outstream);
 #else
   tputs (_rl_term_cr, 1, _rl_output_character_function);
@@ -750,6 +815,80 @@ rl_ding (void)
   return (-1);
 }
 
+#else	/* _WIN32 */
+
+/* Write COUNT characters from STRING to the output stream. */
+void
+_rl_output_some_chars (string, count)
+     const char *string;
+     int count;
+{
+  CONSOLE_SCREEN_BUFFER_INFO	csbi;
+  fwrite (string, 1, count, _rl_out_stream);
+  if ( (haveConsole & FOR_OUTPUT) && GetConsoleScreenBufferInfo(hStdout, &csbi) )
+    {
+      int linear_pos = (int)csbi.dwCursorPosition.Y * (int)csbi.dwSize.X
+			+ (int)csbi.dwCursorPosition.X;
+      if (linear_pos > rlScreenMax)
+        {
+          rlScreenEnd = csbi.dwCursorPosition;
+          rlScreenMax = linear_pos;
+        }
+    }
+}
+
+/* This is used to collect all putc output */
+int
+_rl_output_character_function (c)
+     int c;
+{
+  _rl_output_some_chars ((char *)&c, 1);
+  return 1;
+}
+
+/* Move the cursor back. */
+int
+_rl_backspace (count)
+     int count;
+{
+  CONSOLE_SCREEN_BUFFER_INFO	csbi;
+
+  if ( (haveConsole & FOR_OUTPUT) && GetConsoleScreenBufferInfo(hStdout, &csbi) )
+    {
+      while (count > csbi.dwCursorPosition.X)
+        {
+          --csbi.dwCursorPosition.Y;
+          count -= csbi.dwCursorPosition.X + 1;
+          csbi.dwCursorPosition.X = csbi.dwSize.X - 1;
+        }
+      csbi.dwCursorPosition.X -= count;
+      SetConsoleCursorPosition(hStdout, csbi.dwCursorPosition);
+    }
+  return 0;
+}
+
+/* Move to the start of the next line. */
+int
+rl_crlf ()
+{
+  _rl_output_some_chars ("\n", 1);
+  return 0;
+}
+
+/* Ring the terminal bell. */
+int
+rl_ding ()
+{
+  if (_rl_echoing_p)
+    {
+      if (_rl_bell_preference != NO_BELL)
+	MessageBeep(MB_OK);
+      return (0);
+    }
+  return (-1);
+}
+#endif	/* _WIN32 */
+
 /* **************************************************************** */
 /*								    */
 /*		Entering and leaving terminal standout mode	    */
@@ -759,7 +898,7 @@ rl_ding (void)
 void
 _rl_standout_on (void)
 {
-#ifndef __MSDOS__
+#if !defined(__MSDOS__ ) && !defined(_WIN32)
   if (_rl_term_so && _rl_term_se)
     tputs (_rl_term_so, 1, _rl_output_character_function);
 #endif
@@ -768,7 +907,7 @@ _rl_standout_on (void)
 void
 _rl_standout_off (void)
 {
-#ifndef __MSDOS__
+#if !defined(__MSDOS__ ) && !defined(_WIN32)
   if (_rl_term_so && _rl_term_se)
     tputs (_rl_term_se, 1, _rl_output_character_function);
 #endif
@@ -785,7 +924,7 @@ static int enabled_meta = 0;	/* flag indicating we enabled meta mode */
 void
 _rl_enable_meta_key (void)
 {
-#if !defined (__DJGPP__)
+#if !defined (__DJGPP__) && !defined (_WIN32)
   if (term_has_meta && _rl_term_mm)
     {
       tputs (_rl_term_mm, 1, _rl_output_character_function);
@@ -797,7 +936,7 @@ _rl_enable_meta_key (void)
 void
 _rl_disable_meta_key (void)
 {
-#if !defined (__DJGPP__)
+#if !defined (__DJGPP__) && !defined (_WIN32)
   if (term_has_meta && _rl_term_mo && enabled_meta)
     {
       tputs (_rl_term_mo, 1, _rl_output_character_function);
@@ -809,7 +948,7 @@ _rl_disable_meta_key (void)
 void
 _rl_control_keypad (int on)
 {
-#if !defined (__DJGPP__)
+#if !defined (__DJGPP__) && !defined (_WIN32)
   if (on && _rl_term_ks)
     tputs (_rl_term_ks, 1, _rl_output_character_function);
   else if (!on && _rl_term_ke)
@@ -830,7 +969,7 @@ _rl_control_keypad (int on)
 void
 _rl_set_cursor (int im, int force)
 {
-#ifndef __MSDOS__
+#if !defined (__MSDOS__) && !defined (_WIN32)
   if (_rl_term_ve && _rl_term_vs)
     {
       if (force || im != rl_insert_mode)

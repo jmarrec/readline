@@ -3,7 +3,7 @@
 /* Copyright (C) 1987, 1989, 1992-2015, 2017 Free Software Foundation, Inc.
 
    This file is part of the GNU Readline Library (Readline), a library
-   for reading lines of text with interactive input and history editing.      
+   for reading lines of text with interactive input and history editing.
 
    Readline is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,7 +19,9 @@
    along with Readline.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#define READLINE_LIBRARY
+#ifndef READLINE_LIBRARY
+#  define READLINE_LIBRARY
+#endif
 
 #if defined (__TANDEM)
 #  include <floss.h>
@@ -46,7 +48,11 @@
 #  include <strings.h>
 #endif /* !HAVE_STRING_H */
 
-#if !defined (strchr) && !defined (__STDC__)
+#ifdef _WIN32
+# include <windows.h>
+#endif
+
+#if !defined (strchr) && !defined (__STDC__) && !defined (_WIN32)
 extern char *strchr (), *strrchr ();
 #endif /* !strchr && !__STDC__ */
 
@@ -57,7 +63,11 @@ static int find_matching_open PARAMS((char *, int, int));
 
 /* Non-zero means try to blink the matching open parenthesis when the
    close parenthesis is inserted. */
+#if defined (_WIN32)
+int rl_blink_matching_paren = 1;
+#else /* !_WIN32 */
 int rl_blink_matching_paren = 0;
+#endif
 
 static int _paren_blink_usec = 500000;
 
@@ -137,7 +147,23 @@ rl_insert_close (int count, int invoking_key)
       (*rl_redisplay_function) ();
       ready = select (1, &readfds, (fd_set *)NULL, (fd_set *)NULL, &timer);
       rl_point = orig_point;
-#else /* !HAVE_SELECT */
+#elif defined (_WIN32)
+      int orig_point, match_point, ready;
+
+      rl_insert (1, invoking_key);
+      (*rl_redisplay_function) ();
+      match_point = find_matching_open (rl_line_buffer, rl_point - 2, invoking_key);
+
+      /* Emacs might message or ring the bell here, but I don't. */
+      if (match_point < 0)
+        return -1;
+
+      orig_point = rl_point;
+      rl_point = match_point;
+      (*rl_redisplay_function) ();
+      ready = (WaitForSingleObject (GetStdHandle(STD_INPUT_HANDLE), 500) == WAIT_OBJECT_0);
+      rl_point = orig_point;
+#else /* !HAVE_SELECT && !_WIN32 */
       _rl_insert_char (count, invoking_key);
 #endif /* !HAVE_SELECT */
     }

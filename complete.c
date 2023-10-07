@@ -19,7 +19,9 @@
    along with Readline.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#define READLINE_LIBRARY
+#ifndef READLINE_LIBRARY
+#  define READLINE_LIBRARY
+#endif
 
 #if defined (__TANDEM)
 #  define _XOPEN_SOURCE_EXTENDED 1
@@ -52,12 +54,17 @@
 
 #include <stdio.h>
 
+#ifdef _WIN32
+# include <windows.h>
+# include <io.h>
+#endif
+
 #include <errno.h>
 #if !defined (errno)
 extern int errno;
 #endif /* !errno */
 
-#if defined (HAVE_PWD_H)
+#if defined (HAVE_PWD_H) && !defined (_WIN32)
 #include <pwd.h>
 #endif
 
@@ -77,7 +84,7 @@ extern int errno;
 #  include "colors.h"
 #endif
 
-#ifdef __STDC__
+#if defined(__STDC__) || defined (_WIN32)
 typedef int QSFUNC (const void *, const void *);
 #else
 typedef int QSFUNC ();
@@ -356,7 +363,7 @@ rl_compignore_func_t *rl_ignore_some_completions_function = (rl_compignore_func_
    and a pointer to the quoting character to be used, which the function can
    reset if desired. */
 rl_quote_func_t *rl_filename_quoting_function = rl_quote_filename;
-         
+
 /* Function to call to remove quoting characters from a filename.  Called
    before completion is attempted, so the embedded quotes do not interfere
    with matching names in the file system.  Readline doesn't do anything
@@ -619,7 +626,7 @@ stat_char (char *filename)
     }
   else
     fn = filename;
-    
+
 #if defined (HAVE_LSTAT) && defined (S_ISLNK)
   r = lstat (fn, &finfo);
 #else
@@ -1136,7 +1143,7 @@ _rl_find_completion_word (int *fp, int *dp)
 	      else if (quote_char == '"')
 		found_quote |= RL_QF_DOUBLE_QUOTE;
 	      else
-		found_quote |= RL_QF_OTHER_QUOTE;      
+		found_quote |= RL_QF_OTHER_QUOTE;
 	    }
 	}
     }
@@ -1245,7 +1252,7 @@ gen_completion_matches (char *text, int start, int end, rl_compentry_func_t *our
       matches = 0;
       RL_CHECK_SIGNALS ();
     }
-  return matches;  
+  return matches;
 }
 
 /* Filter out duplicates in MATCHES.  This frees up the strings in
@@ -1724,7 +1731,7 @@ display_matches (char **matches)
       (*rl_completion_display_matches_hook) (matches, len, max);
       return;
     }
-	
+
   /* If there are many items, then ask the user if she really wants to
      see them all. */
   if (rl_completion_query_items > 0 && len >= rl_completion_query_items)
@@ -1974,14 +1981,14 @@ compare_match (char *text, const char *match)
   char *temp;
   int r;
 
-  if (rl_filename_completion_desired && rl_filename_quoting_desired && 
+  if (rl_filename_completion_desired && rl_filename_quoting_desired &&
       rl_completion_found_quote && rl_filename_dequoting_function)
     {
       temp = (*rl_filename_dequoting_function) (text, rl_completion_quote_character);
       r = strcmp (temp, match);
       free (temp);
       return r;
-    }      
+    }
   return (strcmp (text, match));
 }
 
@@ -2129,7 +2136,7 @@ rl_complete_internal (int what_to_do)
 	  append_to_match (matches[0], delimiter, quote_char, nontrivial_lcd);
 	  break;
 	}
-      
+
       if (rl_completion_display_matches_hook == 0)
 	{
 	  _rl_sigcleanup = _rl_complete_sigcleanup;
@@ -2267,7 +2274,12 @@ rl_username_completion_function (const char *text, int state)
   return (char *)NULL;
 #else /* !__WIN32__ && !__OPENNT) */
   static char *username = (char *)NULL;
+#ifndef _WIN32
   static struct passwd *entry;
+#else
+  char user_name[128];
+  unsigned user_len;
+#endif
   static int namelen, first_char, first_char_loc;
   char *value;
 
@@ -2280,11 +2292,11 @@ rl_username_completion_function (const char *text, int state)
 
       username = savestring (&text[first_char_loc]);
       namelen = strlen (username);
-#if defined (HAVE_GETPWENT)
+#if defined (HAVE_GETPWENT) && !defined(_WIN32)
       setpwent ();
 #endif
     }
-
+#ifndef _WIN32
 #if defined (HAVE_GETPWENT)
   while (entry = getpwent ())
     {
@@ -2314,6 +2326,21 @@ rl_username_completion_function (const char *text, int state)
 
       return (value);
     }
+#else /* _WIN32 */
+  if (GetUserName (user_name, &user_len))
+  {
+    if (namelen == 0 || (!strnicmp (username, user_name, namelen)))
+    {
+      value = (char *)xmalloc (2 + strlen (user_name));
+      *value = *text;
+      strcpy (value + first_char_loc, user_name);
+      if (first_char == '~')
+        rl_filename_completion_desired = 1;
+      return (value);
+    }
+  }
+  return ((char *)NULL);
+#endif /* _WIN32 */
 #endif /* !__WIN32__ && !__OPENNT */
 }
 
@@ -2453,7 +2480,16 @@ complete_fncmp (const char *convfn, int convlen, const char *filename, int filen
 char *
 rl_filename_completion_function (const char *text, int state)
 {
+#ifdef _WIN32
+  static WIN32_FIND_DATA entry;
+  static HANDLE directory = NULL;
+  static BOOL found = 0;
+  char tmp[MAX_PATH];
+  #define DIR void
+#else
+  struct dirent *entry;
   static DIR *directory = (DIR *)NULL;
+#endif
   static char *filename = (char *)NULL;
   static char *dirname = (char *)NULL;
   static char *users_dirname = (char *)NULL;
@@ -2461,7 +2497,6 @@ rl_filename_completion_function (const char *text, int state)
   char *temp, *dentry, *convfn;
   int dirlen, dentlen, convlen;
   int tilde_dirname;
-  struct dirent *entry;
 
   /* If we don't have any state, then do some initialization. */
   if (state == 0)
@@ -2549,8 +2584,17 @@ rl_filename_completion_function (const char *text, int state)
 	  xfree (dirname);
 	  dirname = savestring (users_dirname);
 	}
+#ifdef _WIN32
+      strcpy (tmp, dirname);
+      if (tmp[strlen (tmp) - 1] == '/')
+        strcat (tmp, "*");
+      else
+        strcat (tmp, "/*");
+      directory = FindFirstFile (tmp, &entry);
+      found = 1;
+#else
       directory = opendir (dirname);
-
+#endif
       /* Now dequote a non-null filename.  FILENAME will not be NULL, but may
 	 be empty. */
       if (*filename && rl_completion_found_quote && rl_filename_dequoting_function)
@@ -2573,12 +2617,15 @@ rl_filename_completion_function (const char *text, int state)
 
   /* Now that we have some state, we can read the directory. */
 
+#ifndef _WIN32
   entry = (struct dirent *)NULL;
   while (directory && (entry = readdir (directory)))
+#else
+  while (directory != INVALID_HANDLE_VALUE && directory && found)
+#endif
     {
-      convfn = dentry = entry->d_name;
+      convfn = dentry = FILENAME(entry);
       convlen = dentlen = D_NAMLEN (entry);
-
       if (rl_filename_rewrite_hook)
 	{
 	  convfn = (*rl_filename_rewrite_hook) (dentry, dentlen);
@@ -2602,9 +2649,16 @@ rl_filename_completion_function (const char *text, int state)
 	  if (complete_fncmp (convfn, convlen, filename, filename_len))
 	    break;
 	}
+#ifdef _WIN32
+      found = FindNextFile (directory, &entry);
+#endif
     }
 
+#ifdef _WIN32
+  if (!found)
+#else
   if (entry == 0)
+#endif
     {
       if (directory)
 	{
@@ -2661,6 +2715,10 @@ rl_filename_completion_function (const char *text, int state)
 	}
       else
 	temp = savestring (convfn);
+
+#ifdef _WIN32
+      found = FindNextFile (directory, &entry);
+#endif
 
       if (convfn != dentry)
 	xfree (convfn);
@@ -2766,7 +2824,7 @@ rl_old_menu_complete (int count, int invoking_key)
      rl_line_buffer[orig_start] and rl_line_buffer[rl_point] with
      matches[match_list_index], and add any necessary closing char. */
 
-  if (matches == 0 || match_list_size == 0) 
+  if (matches == 0 || match_list_size == 0)
     {
       rl_ding ();
       FREE (matches);
@@ -2808,7 +2866,7 @@ rl_old_menu_complete (int count, int invoking_key)
 3. It displays the common prefix if there is one, and makes it the first menu
    choice if the menu-complete-display-prefix option is enabled
 */
- 
+
 int
 rl_menu_complete (int count, int ignore)
 {
@@ -2891,7 +2949,7 @@ rl_menu_complete (int count, int ignore)
       for (match_list_size = 0; matches[match_list_size]; match_list_size++)
         ;
 
-      if (match_list_size == 0) 
+      if (match_list_size == 0)
 	{
 	  rl_ding ();
 	  FREE (matches);
@@ -2947,7 +3005,7 @@ rl_menu_complete (int count, int ignore)
      rl_line_buffer[orig_start] and rl_line_buffer[rl_point] with
      matches[match_list_index], and add any necessary closing char. */
 
-  if (matches == 0 || match_list_size == 0) 
+  if (matches == 0 || match_list_size == 0)
     {
       rl_ding ();
       FREE (matches);
