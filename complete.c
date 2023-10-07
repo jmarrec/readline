@@ -77,7 +77,7 @@ extern int errno;
 #  include "colors.h"
 #endif
 
-#ifdef __STDC__
+#if defined(__STDC__) || defined (_WIN32)
 typedef int QSFUNC (const void *, const void *);
 #else
 typedef int QSFUNC ();
@@ -356,7 +356,7 @@ rl_compignore_func_t *rl_ignore_some_completions_function = (rl_compignore_func_
    and a pointer to the quoting character to be used, which the function can
    reset if desired. */
 rl_quote_func_t *rl_filename_quoting_function = rl_quote_filename;
-         
+
 /* Function to call to remove quoting characters from a filename.  Called
    before completion is attempted, so the embedded quotes do not interfere
    with matching names in the file system.  Readline doesn't do anything
@@ -619,7 +619,7 @@ stat_char (char *filename)
     }
   else
     fn = filename;
-    
+
 #if defined (HAVE_LSTAT) && defined (S_ISLNK)
   r = lstat (fn, &finfo);
 #else
@@ -1136,7 +1136,7 @@ _rl_find_completion_word (int *fp, int *dp)
 	      else if (quote_char == '"')
 		found_quote |= RL_QF_DOUBLE_QUOTE;
 	      else
-		found_quote |= RL_QF_OTHER_QUOTE;      
+		found_quote |= RL_QF_OTHER_QUOTE;
 	    }
 	}
     }
@@ -1245,7 +1245,7 @@ gen_completion_matches (char *text, int start, int end, rl_compentry_func_t *our
       matches = 0;
       RL_CHECK_SIGNALS ();
     }
-  return matches;  
+  return matches;
 }
 
 /* Filter out duplicates in MATCHES.  This frees up the strings in
@@ -1724,7 +1724,7 @@ display_matches (char **matches)
       (*rl_completion_display_matches_hook) (matches, len, max);
       return;
     }
-	
+
   /* If there are many items, then ask the user if she really wants to
      see them all. */
   if (rl_completion_query_items > 0 && len >= rl_completion_query_items)
@@ -1974,14 +1974,14 @@ compare_match (char *text, const char *match)
   char *temp;
   int r;
 
-  if (rl_filename_completion_desired && rl_filename_quoting_desired && 
+  if (rl_filename_completion_desired && rl_filename_quoting_desired &&
       rl_completion_found_quote && rl_filename_dequoting_function)
     {
       temp = (*rl_filename_dequoting_function) (text, rl_completion_quote_character);
       r = strcmp (temp, match);
       free (temp);
       return r;
-    }      
+    }
   return (strcmp (text, match));
 }
 
@@ -2129,7 +2129,7 @@ rl_complete_internal (int what_to_do)
 	  append_to_match (matches[0], delimiter, quote_char, nontrivial_lcd);
 	  break;
 	}
-      
+
       if (rl_completion_display_matches_hook == 0)
 	{
 	  _rl_sigcleanup = _rl_complete_sigcleanup;
@@ -2766,7 +2766,7 @@ rl_old_menu_complete (int count, int invoking_key)
      rl_line_buffer[orig_start] and rl_line_buffer[rl_point] with
      matches[match_list_index], and add any necessary closing char. */
 
-  if (matches == 0 || match_list_size == 0) 
+  if (matches == 0 || match_list_size == 0)
     {
       rl_ding ();
       FREE (matches);
@@ -2808,7 +2808,7 @@ rl_old_menu_complete (int count, int invoking_key)
 3. It displays the common prefix if there is one, and makes it the first menu
    choice if the menu-complete-display-prefix option is enabled
 */
- 
+
 int
 rl_menu_complete (int count, int ignore)
 {
@@ -2891,7 +2891,7 @@ rl_menu_complete (int count, int ignore)
       for (match_list_size = 0; matches[match_list_size]; match_list_size++)
         ;
 
-      if (match_list_size == 0) 
+      if (match_list_size == 0)
 	{
 	  rl_ding ();
 	  FREE (matches);
@@ -2947,7 +2947,7 @@ rl_menu_complete (int count, int ignore)
      rl_line_buffer[orig_start] and rl_line_buffer[rl_point] with
      matches[match_list_index], and add any necessary closing char. */
 
-  if (matches == 0 || match_list_size == 0) 
+  if (matches == 0 || match_list_size == 0)
     {
       rl_ding ();
       FREE (matches);

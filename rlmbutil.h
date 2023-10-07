@@ -3,7 +3,7 @@
 /* Copyright (C) 2001-2015 Free Software Foundation, Inc.
 
    This file is part of the GNU Readline Library (Readline), a library
-   for reading lines of text with interactive input and history editing.      
+   for reading lines of text with interactive input and history editing.
 
    Readline is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -75,6 +75,12 @@
 #  if !defined (MB_LEN_MAX)
 #    define MB_LEN_MAX 16
 #  endif
+#endif
+
+#ifdef HANDLE_MULTIBYTE
+int wcwidth(wchar_t ucs);
+int wcswidth(const wchar_t *pwcs, size_t n);
+int wcswidth_cjk(const wchar_t *pwcs, size_t n);
 #endif
 
 /************************************************/
